@@ -1,0 +1,221 @@
+# amla-sandbox
+
+Every popular agent framework runs LLM-generated code with `subprocess` or `exec()`. That's arbitrary code execution on your host with no capability restrictions. One prompt injection and you're done.
+
+| Framework | Execution Method                 | Source                                                                                                                                               |
+| --------- | -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| LangChain | `exec(command, globals, locals)` | [CVE-2023-39659](https://security.snyk.io/vuln/SNYK-PYTHON-LANGCHAIN-5843727), [GitHub #5294](https://github.com/langchain-ai/langchain/issues/5294) |
+| AutoGen   | `subprocess.run()`               | [Code Executors docs](https://microsoft.github.io/autogen/0.2/docs/tutorial/code-executors/)                                                         |
+| SWE-Agent | `subprocess.run(["bash", ...])`  | [SWE-ReX](https://github.com/SWE-agent/SWE-ReX)                                                                                                      |
+| OpenHands | Docker container                 | [Runtime docs](https://docs.openhands.dev/modules/usage/architecture/runtime)                                                                        |
+| Aider     | Shell subprocess                 | [commands.py](https://github.com/Aider-AI/aider/blob/main/aider/commands.py)                                                                         |
+
+amla-sandbox is a WASM sandbox with capability enforcement. Agents can only call tools you explicitly provide, with constraints you define. No filesystem. No network. No shell escape.
+
+```bash
+pip install amla-sandbox
+```
+
+No Docker. No VM. One binary, works everywhere.
+
+```python
+from amla_sandbox import create_bash_tool
+
+bash = create_bash_tool(tools=[stripe_api, database])
+
+# Agent writes one script instead of 10 tool calls
+result = bash.run('''
+    const txns = await stripe.listTransactions({customer: "cus_123"});
+    const disputed = txns.filter(t => t.disputed);
+    console.log(disputed[0]);
+''')
+```
+
+## Why this matters
+
+Tool-calling is expensive. Every MCP call is a round trip through the model:
+
+```
+LLM → tool → LLM → tool → LLM → tool → ...
+```
+
+Ten tool calls = ten LLM invocations. Code mode collapses this:
+
+```
+LLM → script that does all 10 things → result
+```
+
+But you can't just eval whatever the model spits out. So people either pay the token tax or run unsafe code. This gives you both: code-mode efficiency with actual isolation.
+
+## Security model
+
+The sandbox runs inside [WebAssembly](https://webassembly.org/docs/security/) with [WASI](https://wasi.dev/) for a minimal syscall interface. WASM provides memory isolation by design—linear memory is bounds-checked, and there's no way to escape to the host address space. The [wasmtime runtime](https://docs.wasmtime.dev/security.html) we use is built with defense-in-depth and has been [formally verified](https://www.usenix.org/conference/usenixsecurity22/presentation/bosamiya) for memory safety.
+
+On top of WASM isolation, every tool call goes through capability validation:
+
+```python
+from amla_sandbox import Sandbox, MethodCapability, ConstraintSet, Param
+
+sandbox = Sandbox(
+    capabilities=[
+        MethodCapability(
+            method_pattern="stripe/charges/*",
+            constraints=ConstraintSet([
+                Param("amount") <= 10000,
+                Param("currency").is_in(["USD", "EUR"]),
+            ]),
+            max_calls=100,
+        ),
+    ],
+    tool_handler=my_handler,
+)
+
+# This works
+sandbox.execute('await stripe.charges.create({amount: 500, currency: "USD"})')
+
+# This fails - amount exceeds capability
+sandbox.execute('await stripe.charges.create({amount: 50000, currency: "USD"})')
+```
+
+The design draws from [capability-based security](https://en.wikipedia.org/wiki/Capability-based_security) as implemented in systems like [seL4](https://sel4.systems/)—access is explicitly granted, not implicitly available. Agents don't get ambient authority just because they're running in your process. This matters because prompt injection is a [fundamental unsolved problem](https://simonwillison.net/2025/Apr/11/prompt-injection-mitigation/); defense in depth through capability restriction limits the blast radius.
+
+## Quick start
+
+```python
+from amla_sandbox import create_sandbox_tool
+
+# Explicit language choice (recommended)
+sandbox = create_sandbox_tool(default_language="javascript")
+sandbox.run("console.log('hello'.toUpperCase())")  # -> "HELLO"
+
+# Or shell-first
+shell = create_sandbox_tool(default_language="shell")
+shell.run("echo 'hello' | tr 'a-z' 'A-Z'")  # -> "HELLO"
+
+# With tools
+def get_weather(city: str) -> dict:
+    return {"city": city, "temp": 72}
+
+sandbox = create_sandbox_tool(tools=[get_weather], default_language="javascript")
+sandbox.run("const w = await get_weather({city: 'SF'}); console.log(w);")
+```
+
+With constraints:
+
+```python
+bash = create_bash_tool(
+    tools=[transfer_money],
+    constraints={
+        "transfer_money": {
+            "amount": "<=1000",
+            "currency": ["USD", "EUR"],
+        },
+    },
+    max_calls={"transfer_money": 10},
+)
+```
+
+## LangGraph
+
+```python
+from langgraph.prebuilt import create_react_agent
+from langchain_anthropic import ChatAnthropic
+from amla_sandbox import create_bash_tool
+
+bash = create_bash_tool(tools=[get_weather, search_db])
+agent = create_react_agent(
+    ChatAnthropic(model="claude-sonnet-4-20250514"),
+    [bash.as_langchain_tool()]
+)
+```
+
+For fine-grained capability control:
+
+```python
+from amla_sandbox import SandboxTool, MethodCapability, ConstraintSet, Param
+
+caps = [
+    MethodCapability(
+        method_pattern="mcp:search_db",
+        constraints=ConstraintSet([Param("query").starts_with("SELECT")]),
+        max_calls=5,
+    )
+]
+
+sandbox_tool = SandboxTool.from_functions([search_db], capabilities=caps)
+agent = create_react_agent(model, [sandbox_tool.as_langchain_tool()])
+```
+
+## Architecture
+
+```
+┌────────────────────────────────────────────────┐
+│              WASM Sandbox                      │
+│  ┌──────────────────────────────────────────┐  │
+│  │         Async Scheduler                  │  │
+│  │   tasks waiting/running/ready            │  │
+│  └──────────────────────────────────────────┘  │
+│  ┌────────────┐ ┌──────────┐ ┌──────────────┐  │
+│  │  VFS       │ │ Shell    │ │ Capabilities │  │
+│  │ /workspace │ │ builtins │ │ validation   │  │
+│  └────────────┘ └──────────┘ └──────────────┘  │
+│                    ↓ yield                     │
+└════════════════════════════════════════════════┘
+                     │
+                     ▼
+┌─────────────────────────────────────────────┐
+│              Python Host                    │
+│                                             │
+│   while sandbox.has_work():                 │
+│       req = sandbox.step()  # tool call     │
+│       sandbox.resume(execute(req))          │
+│                                             │
+└─────────────────────────────────────────────┘
+```
+
+The sandbox yields on tool calls. Host executes them (after capability checks) and resumes. [QuickJS](https://bellard.org/quickjs/) runs inside WASM for the JS runtime.
+
+## Precompilation
+
+First run compiles the WASM module (~300ms). Cache it:
+
+```bash
+amla-precompile
+```
+
+Subsequent loads: ~0.5ms.
+
+## Constraint DSL
+
+```python
+from amla_sandbox import Param, ConstraintSet
+
+constraints = ConstraintSet([
+    Param("amount") >= 100,
+    Param("amount") <= 10000,
+    Param("currency").is_in(["USD", "EUR"]),
+    Param("path").starts_with("/api/"),
+])
+```
+
+Pattern matching for method names:
+
+- `stripe/charges/create` — exact match
+- `stripe/charges/*` — single path segment
+- `stripe/**` — zero or more segments
+
+## Tradeoffs
+
+**What you get:** Isolation without infrastructure. Capability enforcement. Token efficiency.
+
+**What you don't get:** Full Linux environment. Native module support. GPU access.
+
+If you need a real VM with persistent state and arbitrary dependencies, use [e2b](https://e2b.dev) or [Modal](https://modal.com). amla-sandbox is for the common case: agents running generated code with controlled tool access.
+
+## License
+
+Python code is MIT. The WASM binary is proprietary—you can use it with this package but can't extract or redistribute it separately.
+
+---
+
+[Website](https://amlalabs.com/sandbox) · [Examples](./examples) · [Docs](./docs)
