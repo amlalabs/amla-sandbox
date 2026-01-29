@@ -8,7 +8,7 @@ Run: python data_pipeline.py
 
 from typing import Any
 
-from amla_sandbox import create_bash_tool
+from amla_sandbox import create_sandbox_tool
 
 
 def fetch_source_data(source: str, batch_size: int = 100) -> dict[str, Any]:
@@ -55,14 +55,15 @@ def load_to_warehouse(table: str, records: list[dict[str, Any]]) -> dict[str, An
 
 
 def main() -> None:
-    bash = create_bash_tool(
+    sandbox = create_sandbox_tool(
         tools=[fetch_source_data, validate_record, load_to_warehouse],
         max_calls=200,
     )
 
     # Example 1: Simple ETL Pipeline
     print("--- Simple ETL Pipeline ---")
-    result = bash.run("""
+    result = sandbox.run(
+        """
         console.log("ETL Pipeline\\n");
         const data = await fetch_source_data({source: "sales", batch_size: 5});
         console.log("Extracted:", data.records.length, "records");
@@ -76,12 +77,15 @@ def main() -> None:
 
         const load = await load_to_warehouse({table: "fact_sales", records: valid});
         console.log("Loaded:", load.records_loaded, "to", load.table);
-    """)
+    """,
+        language="javascript",
+    )
     print(result)
 
     # Example 2: Multi-Source Pipeline
     print("\n--- Multi-Source Pipeline ---")
-    result = bash.run("""
+    result = sandbox.run(
+        """
         console.log("Multi-source ETL\\n");
         const results = {};
         for (const src of ["sales", "customers"]) {
@@ -91,12 +95,15 @@ def main() -> None:
             console.log(src + ":", load.records_loaded, "loaded");
         }
         console.log("\\nTotal sources:", Object.keys(results).length);
-    """)
+    """,
+        language="javascript",
+    )
     print(result)
 
     # Example 3: Batched Processing with VFS Checkpoint
     print("\n--- Batched Processing ---")
-    result = bash.run("""
+    result = sandbox.run(
+        """
         const data = await fetch_source_data({source: "sales", batch_size: 12});
         let processed = 0;
         const batchSize = 4;
@@ -109,12 +116,15 @@ def main() -> None:
             console.log("Batch", Math.floor(i/batchSize)+1, "- total:", processed);
         }
         console.log("\\nFinal checkpoint:", await fs.readFile("/workspace/checkpoint.json"));
-    """)
+    """,
+        language="javascript",
+    )
     print(result)
 
     # Example 4: Data Quality Check
     print("\n--- Data Quality Check ---")
-    result = bash.run("""
+    result = sandbox.run(
+        """
         const data = await fetch_source_data({source: "sales", batch_size: 10});
         let valid = 0, total = 0, sum = 0;
         for (const r of data.records) {
@@ -127,7 +137,9 @@ def main() -> None:
         console.log("  Records:", total);
         console.log("  Valid:", valid, "(" + Math.round(valid/total*100) + "%)");
         console.log("  Total Amount: $" + sum);
-    """)
+    """,
+        language="javascript",
+    )
     print(result)
 
 

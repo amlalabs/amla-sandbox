@@ -19,7 +19,7 @@ Time: ~10 minutes
 IMPORTANT: All fs operations are async and require `await`.
 """
 
-from amla_sandbox import create_bash_tool
+from amla_sandbox import create_sandbox_tool
 
 # =============================================================================
 # Part 1: Basic File Operations
@@ -32,7 +32,7 @@ def part1_basic_io() -> None:
     print("Part 1: Basic File Operations")
     print("=" * 60)
 
-    bash = create_bash_tool()
+    sandbox = create_sandbox_tool()
 
     # The VFS starts empty. You can write files anywhere.
     # Common conventions:
@@ -41,20 +41,27 @@ def part1_basic_io() -> None:
     #   /tmp/        - temporary files (same as /workspace/ in practice)
 
     # Write a text file (async - requires await)
-    bash.run("""
+    sandbox.run(
+        """
         await fs.writeFile('/workspace/greeting.txt', 'Hello, VFS!');
         console.log("Wrote greeting.txt");
-    """)
+    """,
+        language="javascript",
+    )
 
     # Read it back
-    output = bash.run("""
+    output = sandbox.run(
+        """
         const content = await fs.readFile('/workspace/greeting.txt');
         console.log(content);
-    """)
+    """,
+        language="javascript",
+    )
     print(f"Read file: {output}")
 
     # Write JSON data (very common pattern)
-    bash.run("""
+    sandbox.run(
+        """
         const data = {
             users: [
                 { id: 1, name: "Alice", role: "admin" },
@@ -65,14 +72,19 @@ def part1_basic_io() -> None:
         };
         await fs.writeFile('/workspace/users.json', JSON.stringify(data, null, 2));
         console.log("Wrote users.json");
-    """)
+    """,
+        language="javascript",
+    )
 
     # Read and parse JSON
-    output = bash.run("""
+    output = sandbox.run(
+        """
         const data = JSON.parse(await fs.readFile('/workspace/users.json'));
         const admins = data.users.filter(u => u.role === 'admin');
         console.log(`Found ${admins.length} admin(s): ${admins.map(a => a.name).join(', ')}`);
-    """)
+    """,
+        language="javascript",
+    )
     print(f"Parsed JSON: {output}")
 
 
@@ -87,10 +99,11 @@ def part2_directories() -> None:
     print("Part 2: Directory Operations")
     print("=" * 60)
 
-    bash = create_bash_tool()
+    sandbox = create_sandbox_tool()
 
     # Create a directory structure
-    output = bash.run("""
+    output = sandbox.run(
+        """
         // Create nested directories (async operations)
         await fs.mkdir('/project', { recursive: true });
         await fs.mkdir('/project/src');
@@ -103,19 +116,25 @@ def part2_directories() -> None:
         await fs.writeFile('/project/data/input.json', '{"items": [1, 2, 3]}');
 
         console.log("Created project structure");
-    """)
+    """,
+        language="javascript",
+    )
     print(output)
 
     # List directory contents
-    output = bash.run("""
+    output = sandbox.run(
+        """
         const files = await fs.readdir('/project/src');
         console.log("Files in /project/src:");
         files.forEach(f => console.log("  - " + f));
-    """)
+    """,
+        language="javascript",
+    )
     print(output)
 
     # Check if file/directory exists
-    output = bash.run("""
+    output = sandbox.run(
+        """
         async function exists(path) {
             try {
                 await fs.stat(path);
@@ -128,17 +147,22 @@ def part2_directories() -> None:
         console.log(`/project exists: ${await exists('/project')}`);
         console.log(`/project/src exists: ${await exists('/project/src')}`);
         console.log(`/nonexistent exists: ${await exists('/nonexistent')}`);
-    """)
+    """,
+        language="javascript",
+    )
     print(output)
 
     # Get file stats
-    output = bash.run("""
+    output = sandbox.run(
+        """
         const stats = await fs.stat('/project/src/main.js');
         console.log("File stats for main.js:");
         console.log(`  Size: ${stats.size} bytes`);
         console.log(`  Is file: ${stats.isFile()}`);
         console.log(`  Is directory: ${stats.isDirectory()}`);
-    """)
+    """,
+        language="javascript",
+    )
     print(output)
 
 
@@ -153,13 +177,14 @@ def part3_persistence() -> None:
     print("Part 3: State Persistence")
     print("=" * 60)
 
-    bash = create_bash_tool()
+    sandbox = create_sandbox_tool()
 
     # Agents often need to maintain state between turns.
     # The /state/ directory is a convention for this.
 
     # Execution 1: Initialize state
-    bash.run("""
+    sandbox.run(
+        """
         const state = {
             conversationId: "conv_" + Date.now(),
             turnCount: 0,
@@ -168,11 +193,14 @@ def part3_persistence() -> None:
         await fs.mkdir('/state', { recursive: true });
         await fs.writeFile('/state/agent.json', JSON.stringify(state));
         console.log("Initialized agent state");
-    """)
+    """,
+        language="javascript",
+    )
     print("Turn 1: Initialized state")
 
     # Execution 2: Update state
-    output = bash.run("""
+    output = sandbox.run(
+        """
         // Load state
         const state = JSON.parse(await fs.readFile('/state/agent.json'));
 
@@ -183,25 +211,33 @@ def part3_persistence() -> None:
         // Save
         await fs.writeFile('/state/agent.json', JSON.stringify(state));
         console.log(`Turn ${state.turnCount}: Updated state`);
-    """)
+    """,
+        language="javascript",
+    )
     print(f"Turn 2: {output}")
 
     # Execution 3: Another update
-    output = bash.run("""
+    output = sandbox.run(
+        """
         const state = JSON.parse(await fs.readFile('/state/agent.json'));
         state.turnCount++;
         state.memory.push({ turn: state.turnCount, action: "Analyzed results" });
         await fs.writeFile('/state/agent.json', JSON.stringify(state));
         console.log(`Turn ${state.turnCount}: Updated state`);
-    """)
+    """,
+        language="javascript",
+    )
     print(f"Turn 3: {output}")
 
     # Execution 4: Read final state
-    output = bash.run("""
+    output = sandbox.run(
+        """
         const state = JSON.parse(await fs.readFile('/state/agent.json'));
         console.log("Final state:");
         console.log(JSON.stringify(state, null, 2));
-    """)
+    """,
+        language="javascript",
+    )
     print(f"Final state:\n{output}")
 
 
@@ -216,11 +252,12 @@ def part4_data_processing() -> None:
     print("Part 4: Data Processing Patterns")
     print("=" * 60)
 
-    bash = create_bash_tool()
+    sandbox = create_sandbox_tool()
 
     # Pattern 1: Process large datasets in chunks
     print("\nPattern 1: Chunked Processing")
-    output = bash.run("""
+    output = sandbox.run(
+        """
         // Simulate a large dataset
         const items = Array.from({length: 100}, (_, i) => ({
             id: i + 1,
@@ -249,12 +286,15 @@ def part4_data_processing() -> None:
 
         console.log(`Processed ${processed} items in ${results.length} chunks`);
         console.log(`Average values per chunk: ${results.map(r => r.avgValue.toFixed(1)).join(', ')}`);
-    """)
+    """,
+        language="javascript",
+    )
     print(output)
 
     # Pattern 2: Aggregate results from multiple files
     print("\nPattern 2: Multi-file Aggregation")
-    output = bash.run("""
+    output = sandbox.run(
+        """
         // Create multiple result files (simulating distributed processing)
         await fs.mkdir('/workspace/results', { recursive: true });
 
@@ -290,12 +330,15 @@ def part4_data_processing() -> None:
         console.log("Aggregated results:");
         console.log(`  Total Sales: $${aggregated.totalSales.toLocaleString()}`);
         console.log(`  Total Customers: ${aggregated.totalCustomers}`);
-    """)
+    """,
+        language="javascript",
+    )
     print(output)
 
     # Pattern 3: Cache expensive computations
     print("\nPattern 3: Computation Caching")
-    bash.run("""
+    sandbox.run(
+        """
         await fs.mkdir('/cache', { recursive: true });
 
         async function cachedCompute(key, computeFn) {
@@ -329,7 +372,9 @@ def part4_data_processing() -> None:
         });
 
         console.log(`Result: fib(10) = ${result1.value}`);
-    """)
+    """,
+        language="javascript",
+    )
 
 
 # =============================================================================
@@ -343,10 +388,11 @@ def part5_binary_data() -> None:
     print("Part 5: Binary Data and Encoding")
     print("=" * 60)
 
-    bash = create_bash_tool()
+    sandbox = create_sandbox_tool()
 
     # Base64 encoding/decoding
-    output = bash.run("""
+    output = sandbox.run(
+        """
         // Encode text to base64
         const text = "Hello, this is some text to encode!";
         const encoded = btoa(text);
@@ -357,11 +403,14 @@ def part5_binary_data() -> None:
         const decoded = atob(encoded);
         console.log(`Decoded: ${decoded}`);
         console.log(`Match: ${text === decoded}`);
-    """)
+    """,
+        language="javascript",
+    )
     print(output)
 
     # Store and retrieve binary-like data
-    output = bash.run("""
+    output = sandbox.run(
+        """
         // Create some "binary" data (array of bytes)
         const binaryData = new Uint8Array([0x48, 0x65, 0x6c, 0x6c, 0x6f]);  // "Hello"
 
@@ -377,7 +426,9 @@ def part5_binary_data() -> None:
         console.log(`Stored bytes: [${binaryData.join(', ')}]`);
         console.log(`Decoded bytes: [${decodedBytes.join(', ')}]`);
         console.log(`As string: "${decodedStr}"`);
-    """)
+    """,
+        language="javascript",
+    )
     print(output)
 
 
@@ -392,10 +443,11 @@ def part6_agent_memory() -> None:
     print("Part 6: Real-World Example - Agent Memory")
     print("=" * 60)
 
-    bash = create_bash_tool()
+    sandbox = create_sandbox_tool()
 
     # Initialize the memory system
-    bash.run("""
+    sandbox.run(
+        """
         // Agent Memory System
         // Stores conversation history, facts, and working memory
 
@@ -410,13 +462,16 @@ def part6_agent_memory() -> None:
         }));
 
         console.log("Memory system initialized");
-    """)
+    """,
+        language="javascript",
+    )
 
     # Simulate a few conversation turns
     print("\nSimulating conversation turns...")
 
     # Turn 1: User asks a question
-    bash.run("""
+    sandbox.run(
+        """
         const history = JSON.parse(await fs.readFile('/memory/history.json'));
         history.messages.push({
             role: 'user',
@@ -440,11 +495,14 @@ def part6_agent_memory() -> None:
 
         await fs.writeFile('/memory/history.json', JSON.stringify(history));
         console.log("Turn 1 complete");
-    """)
+    """,
+        language="javascript",
+    )
     print("  Turn 1: Asked about France's capital")
 
     # Turn 2: Follow-up question
-    bash.run("""
+    sandbox.run(
+        """
         const history = JSON.parse(await fs.readFile('/memory/history.json'));
         history.messages.push({
             role: 'user',
@@ -467,11 +525,14 @@ def part6_agent_memory() -> None:
 
         await fs.writeFile('/memory/history.json', JSON.stringify(history));
         console.log("Turn 2 complete");
-    """)
+    """,
+        language="javascript",
+    )
     print("  Turn 2: Asked about Germany's capital")
 
     # Query the memory
-    output = bash.run("""
+    output = sandbox.run(
+        """
         // Query conversation history
         const history = JSON.parse(await fs.readFile('/memory/history.json'));
         console.log(`Conversation has ${history.messages.length} messages`);
@@ -491,7 +552,9 @@ def part6_agent_memory() -> None:
         console.log(`\\nLast exchange:`);
         console.log(`  User: "${lastUser.content}"`);
         console.log(`  Assistant: "${lastAssistant.content}"`);
-    """)
+    """,
+        language="javascript",
+    )
     print(f"\nMemory query results:\n{output}")
 
 

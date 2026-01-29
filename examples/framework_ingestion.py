@@ -19,7 +19,7 @@ Usage:
 
 from typing import Any
 
-from amla_sandbox import create_bash_tool
+from amla_sandbox import create_sandbox_tool
 from amla_sandbox.tools import (
     from_anthropic_tools,
     from_langchain,
@@ -94,9 +94,12 @@ def openai_example() -> None:
     for d in defs:
         print(f"  - {d.name}: {d.description}")
 
-    # Use with create_bash_tool
-    bash = create_bash_tool(tools=funcs)
-    result = bash.run('const w = await get_weather({city: "SF"}); console.log(w);')
+    # Use with create_sandbox_tool
+    sandbox = create_sandbox_tool(tools=funcs)
+    result = sandbox.run(
+        'const w = await get_weather({city: "SF"}); console.log(w);',
+        language="javascript",
+    )
     print(f"Execution result: {result}")
 
 
@@ -165,8 +168,8 @@ def anthropic_example() -> None:
     for d in defs:
         print(f"  - {d.name}: {d.description}")
 
-    # Use with create_bash_tool (with constraints!)
-    bash = create_bash_tool(
+    # Use with create_sandbox_tool (with constraints!)
+    sandbox = create_sandbox_tool(
         tools=funcs,
         constraints={
             "send_email": {
@@ -175,7 +178,10 @@ def anthropic_example() -> None:
         },
     )
 
-    result = bash.run("const r = await add_numbers({a: 5, b: 3}); console.log(r);")
+    result = sandbox.run(
+        "const r = await add_numbers({a: 5, b: 3}); console.log(r);",
+        language="javascript",
+    )
     print(f"Addition result: {result}")
 
 
@@ -222,10 +228,11 @@ def langchain_example() -> None:
         print(f"  - {d.name}: {d.description}")
         print(f"    Parameters: {list(d.parameters.get('properties', {}).keys())}")
 
-    # Use with create_bash_tool
-    bash = create_bash_tool(tools=funcs)
-    result = bash.run(
-        'const t = await translate({text: "Hello", to_language: "Spanish"}); console.log(t);'
+    # Use with create_sandbox_tool
+    sandbox = create_sandbox_tool(tools=funcs)
+    result = sandbox.run(
+        'const t = await translate({text: "Hello", to_language: "Spanish"}); console.log(t);',
+        language="javascript",
     )
     print(f"Translation result: {result}")
 
@@ -297,7 +304,7 @@ def mixed_example() -> None:
         print(f"  - {d.name}: {d.description}")
 
     # Create unified bash tool
-    bash = create_bash_tool(tools=all_funcs)
+    sandbox = create_sandbox_tool(tools=all_funcs)
 
     # Use both tools together
     script = """
@@ -305,7 +312,7 @@ def mixed_example() -> None:
     await store_result({key: "users", value: JSON.stringify(data)});
     console.log("Data fetched and stored!");
     """
-    result = bash.run(script)
+    result = sandbox.run(script, language="javascript")
     print(f"Combined execution: {result}")
 
 

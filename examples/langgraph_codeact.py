@@ -257,7 +257,7 @@ def example_1_portfolio_analysis() -> None:
     """Example 1: Multi-step portfolio analysis with code generation."""
     from langchain_openai import ChatOpenAI
     from langgraph.prebuilt import create_react_agent
-    from amla_sandbox import create_bash_tool
+    from amla_sandbox import create_sandbox_tool
 
     print("\n" + "=" * 60)
     print("Example 1: Portfolio Analysis (Code Generation)")
@@ -270,7 +270,7 @@ This example shows the LLM writing JavaScript to:
 - Generate a summary report
 """)
 
-    bash = create_bash_tool(
+    sandbox = create_sandbox_tool(
         tools=[get_portfolio, get_stock_price, get_company_info, calculate_metrics],
         max_calls=50,
     )
@@ -282,7 +282,7 @@ This example shows the LLM writing JavaScript to:
 
     # Use code generation approach
     agent: Any = create_react_agent(
-        model, [bash.as_langchain_tool()], prompt=bash.get_system_prompt()
+        model, [sandbox.as_langchain_tool()], prompt=sandbox.get_system_prompt()
     )
 
     print("-" * 40)
@@ -324,7 +324,7 @@ def example_2_stock_screener() -> None:
     """Example 2: Stock screening with filtering and sorting."""
     from langchain_openai import ChatOpenAI
     from langgraph.prebuilt import create_react_agent
-    from amla_sandbox import create_bash_tool
+    from amla_sandbox import create_sandbox_tool
 
     print("\n" + "=" * 60)
     print("Example 2: Stock Screener (Loop + Filter + Sort)")
@@ -337,7 +337,7 @@ This example shows the LLM writing JavaScript to:
 - Use the VFS to store intermediate data
 """)
 
-    bash = create_bash_tool(
+    sandbox = create_sandbox_tool(
         tools=[get_stock_price, get_analyst_rating, get_company_info],
         max_calls=50,
     )
@@ -348,7 +348,7 @@ This example shows the LLM writing JavaScript to:
     )
 
     agent: Any = create_react_agent(
-        model, [bash.as_langchain_tool()], prompt=bash.get_system_prompt()
+        model, [sandbox.as_langchain_tool()], prompt=sandbox.get_system_prompt()
     )
 
     print("-" * 40)
@@ -389,7 +389,7 @@ def example_3_news_sentiment_analysis() -> None:
     """Example 3: News aggregation with sentiment analysis."""
     from langchain_openai import ChatOpenAI
     from langgraph.prebuilt import create_react_agent
-    from amla_sandbox import create_bash_tool
+    from amla_sandbox import create_sandbox_tool
 
     print("\n" + "=" * 60)
     print("Example 3: News Sentiment Analysis (Aggregation + Shell)")
@@ -402,7 +402,7 @@ This example shows the LLM:
 - Writing results to VFS and reading back
 """)
 
-    bash = create_bash_tool(
+    sandbox = create_sandbox_tool(
         tools=[search_news, get_stock_price],
         max_calls=50,
     )
@@ -413,7 +413,7 @@ This example shows the LLM:
     )
 
     agent: Any = create_react_agent(
-        model, [bash.as_langchain_tool()], prompt=bash.get_system_prompt()
+        model, [sandbox.as_langchain_tool()], prompt=sandbox.get_system_prompt()
     )
 
     print("-" * 40)
@@ -454,7 +454,7 @@ def example_4_trading_strategy() -> None:
     """Example 4: Conditional trading based on analysis."""
     from langchain_openai import ChatOpenAI
     from langgraph.prebuilt import create_react_agent
-    from amla_sandbox import create_bash_tool
+    from amla_sandbox import create_sandbox_tool
 
     print("\n" + "=" * 60)
     print("Example 4: Trading Strategy (Conditionals + Execution)")
@@ -467,7 +467,7 @@ This example shows the LLM writing code that:
 - Executes trades based on logic
 """)
 
-    bash = create_bash_tool(
+    sandbox = create_sandbox_tool(
         tools=[get_portfolio, get_stock_price, get_analyst_rating, execute_trade],
         max_calls=30,
         constraints={
@@ -483,7 +483,7 @@ This example shows the LLM writing code that:
     )
 
     agent: Any = create_react_agent(
-        model, [bash.as_langchain_tool()], prompt=bash.get_system_prompt()
+        model, [sandbox.as_langchain_tool()], prompt=sandbox.get_system_prompt()
     )
 
     print("-" * 40)
@@ -522,7 +522,7 @@ def example_5_data_pipeline() -> None:
     """Example 5: Complex data pipeline with shell integration."""
     from langchain_openai import ChatOpenAI
     from langgraph.prebuilt import create_react_agent
-    from amla_sandbox import create_bash_tool
+    from amla_sandbox import create_sandbox_tool
 
     print("\n" + "=" * 60)
     print("Example 5: Data Pipeline (JS + Shell + VFS)")
@@ -535,7 +535,7 @@ This example shows a full data pipeline:
 - Generate formatted output
 """)
 
-    bash = create_bash_tool(
+    sandbox = create_sandbox_tool(
         tools=[
             get_stock_price,
             get_company_info,
@@ -551,7 +551,7 @@ This example shows a full data pipeline:
     )
 
     agent: Any = create_react_agent(
-        model, [bash.as_langchain_tool()], prompt=bash.get_system_prompt()
+        model, [sandbox.as_langchain_tool()], prompt=sandbox.get_system_prompt()
     )
 
     print("-" * 40)

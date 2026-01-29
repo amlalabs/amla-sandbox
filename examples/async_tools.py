@@ -25,7 +25,7 @@ from amla_sandbox import (
     Sandbox,
     MethodCapability,
     ToolDefinition,
-    create_bash_tool,
+    create_sandbox_tool,
     tool_from_function,
 )
 
@@ -40,7 +40,7 @@ def part1_basic_tools() -> None:
     print("Part 1: Basic Tool Creation")
     print("=" * 60)
 
-    # The simplest way: pass functions directly to create_bash_tool
+    # The simplest way: pass functions directly to create_sandbox_tool
     def get_current_time() -> dict[str, str]:
         """Get the current time."""
         return {"time": time.strftime("%Y-%m-%d %H:%M:%S")}
@@ -64,32 +64,41 @@ def part1_basic_tools() -> None:
         return {"message": f"{greeting}, {name}!"}
 
     # Create bash tool with these functions
-    bash = create_bash_tool(tools=[get_current_time, add_numbers, greet])
+    sandbox = create_sandbox_tool(tools=[get_current_time, add_numbers, greet])
 
     # Call tools from JavaScript
     print("\nCalling tools from JavaScript:")
 
-    output = bash.run("""
+    output = sandbox.run(
+        """
         const time = await get_current_time({});
         console.log("Current time:", time.time);
-    """)
+    """,
+        language="javascript",
+    )
     print(f"  {output}")
 
-    output = bash.run("""
+    output = sandbox.run(
+        """
         const result = await add_numbers({a: 10, b: 32});
         console.log(`${result.a} + ${result.b} = ${result.sum}`);
-    """)
+    """,
+        language="javascript",
+    )
     print(f"  {output}")
 
-    output = bash.run("""
+    output = sandbox.run(
+        """
         const greeting = await greet({name: "World", greeting: "Howdy"});
         console.log(greeting.message);
-    """)
+    """,
+        language="javascript",
+    )
     print(f"  {output}")
 
     # Tools can also be called via shell syntax
     print("\nCalling tools via shell syntax:")
-    output = bash.run("tool greet --name Alice")
+    output = sandbox.run("tool greet --name Alice", language="shell")
     print(f"  {output}")
 
 
@@ -585,17 +594,20 @@ def part6_tool_from_function() -> None:
     print(f"  {search_tool.name}: {search_tool.description}")
     print(f"  {details_tool.name}: {details_tool.description}")
 
-    # Use with create_bash_tool for the simplest API
-    bash = create_bash_tool(tools=[search_products, get_product_details])
+    # Use with create_sandbox_tool for the simplest API
+    sandbox = create_sandbox_tool(tools=[search_products, get_product_details])
 
     print("\nUsing auto-generated tools:")
-    result = bash.run("""
+    result = sandbox.run(
+        """
         const results = await search_products({query: "laptop", category: "electronics"});
         console.log("Found", results.results.length, "products");
 
         const details = await get_product_details({product_id: 42});
         console.log("Product:", details.name, "- $" + details.price);
-    """)
+    """,
+        language="javascript",
+    )
     print(f"  {result}")
 
 
@@ -623,7 +635,7 @@ def main() -> None:
     print("""
 Key takeaways:
 
-1. create_bash_tool(tools=[...]) is the easiest way
+1. create_sandbox_tool(tools=[...]) is the easiest way
 2. Python functions become JavaScript-callable tools
 3. Docstrings become tool descriptions
 4. Use async handlers for I/O operations

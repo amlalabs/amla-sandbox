@@ -20,7 +20,7 @@ Time: ~15 minutes
 
 from typing import Any
 
-from amla_sandbox import create_bash_tool
+from amla_sandbox import create_sandbox_tool
 
 # =============================================================================
 # Part 1: Introduction to Testing
@@ -169,7 +169,7 @@ def part3_capability_testing() -> None:
         return {"account_id": account_id, "amount": amount, "status": "ok"}
 
     # Create with constraints and max_calls
-    bash = create_bash_tool(
+    sandbox = create_sandbox_tool(
         tools=[account_read, account_write],
         constraints={"account_write": {"amount": "<=1000"}},
         max_calls={"account_write": 5},
@@ -178,49 +178,62 @@ def part3_capability_testing() -> None:
     print("Capability enforcement tests:")
 
     def test_read_allowed() -> None:
-        result = bash.run('await account_read({account_id: "a1"}); console.log("ok");')
+        result = sandbox.run(
+            'await account_read({account_id: "a1"}); console.log("ok");',
+            language="javascript",
+        )
         assert "ok" in result
         print("  ✓ account_read is allowed")
 
     def test_write_within_limits() -> None:
-        result = bash.run(
-            'await account_write({account_id: "a1", amount: 500}); console.log("ok");'
+        result = sandbox.run(
+            'await account_write({account_id: "a1", amount: 500}); console.log("ok");',
+            language="javascript",
         )
         assert "ok" in result
         print("  ✓ account_write with amount=500 is allowed")
 
     def test_write_exceeds_constraint() -> None:
-        result = bash.run("""
+        result = sandbox.run(
+            """
             try {
                 await account_write({account_id: "a1", amount: 2000});
                 console.log("ALLOWED");
             } catch (e) {
                 console.log("DENIED");
             }
-        """)
+        """,
+            language="javascript",
+        )
         assert "DENIED" in result
         print("  ✓ account_write with amount=2000 is denied (constraint)")
 
     def test_max_calls_enforcement() -> None:
-        # Create a fresh bash tool to test max_calls
-        bash2 = create_bash_tool(
+        # Create a fresh sandbox to test max_calls
+        sandbox2 = create_sandbox_tool(
             tools=[account_write],
             max_calls={"account_write": 3},
         )
 
         # Make calls up to limit
         for i in range(3):
-            bash2.run(f'await account_write({{account_id: "a1", amount: {i * 100}}});')
+            sandbox2.run(
+                f'await account_write({{account_id: "a1", amount: {i * 100}}});',
+                language="javascript",
+            )
 
         # Next call should be denied
-        result = bash2.run("""
+        result = sandbox2.run(
+            """
             try {
                 await account_write({account_id: "a1", amount: 100});
                 console.log("ALLOWED");
             } catch (e) {
                 console.log("DENIED");
             }
-        """)
+        """,
+            language="javascript",
+        )
         assert "DENIED" in result
         print("  ✓ account_write denied after max_calls exceeded")
 
@@ -256,28 +269,35 @@ def part4_js_execution_testing() -> None:
             return {"error": "Amount must be positive"}
         return {"from": from_id, "to": to_id, "amount": amount, "status": "completed"}
 
-    bash = create_bash_tool(tools=[get_user, transfer])
+    sandbox = create_sandbox_tool(tools=[get_user, transfer])
 
     print("JavaScript execution tests:")
 
     def test_tool_call_from_js() -> None:
-        result = bash.run("""
+        result = sandbox.run(
+            """
             const user = await get_user({user_id: "u1"});
             console.log(user.name);
-        """)
+        """,
+            language="javascript",
+        )
         assert "Alice" in result
         print("  ✓ Tool call from JS returns correct data")
 
     def test_error_handling_in_js() -> None:
-        result = bash.run("""
+        result = sandbox.run(
+            """
             const user = await get_user({user_id: "invalid"});
             console.log(user.error ? "ERROR" : user.name);
-        """)
+        """,
+            language="javascript",
+        )
         assert "ERROR" in result
         print("  ✓ Error responses handled correctly in JS")
 
     def test_multi_step_workflow() -> None:
-        result = bash.run("""
+        result = sandbox.run(
+            """
             const alice = await get_user({user_id: "u1"});
             const bob = await get_user({user_id: "u2"});
 
@@ -289,19 +309,27 @@ def part4_js_execution_testing() -> None:
                 });
                 console.log(transfer_result.status);
             }
-        """)
+        """,
+            language="javascript",
+        )
         assert "completed" in result
         print("  ✓ Multi-step workflow executes correctly")
 
     def test_vfs_persistence() -> None:
         # Write in first call (use /workspace which exists)
-        bash.run("await fs.writeFile('/workspace/data.txt', 'hello');")
+        sandbox.run(
+            "await fs.writeFile('/workspace/data.txt', 'hello');",
+            language="javascript",
+        )
 
         # Read in second call
-        result = bash.run("""
+        result = sandbox.run(
+            """
             const content = await fs.readFile('/workspace/data.txt');
             console.log(content);
-        """)
+        """,
+            language="javascript",
+        )
         assert "hello" in result
         print("  ✓ VFS persists between calls")
 
@@ -353,7 +381,7 @@ def part5_integration_testing() -> None:
                 return order
         return {"error": "Order not found"}
 
-    bash = create_bash_tool(
+    sandbox = create_sandbox_tool(
         tools=[check_inventory, create_order, get_order], max_calls=50
     )
 
@@ -361,42 +389,57 @@ def part5_integration_testing() -> None:
 
     def test_complete_order_flow() -> None:
         # Check inventory
-        result = bash.run("""
+        result = sandbox.run(
+            """
             const stock = await check_inventory({product: "widget"});
             console.log("Stock:", stock.in_stock);
-        """)
+        """,
+            language="javascript",
+        )
         assert "10" in result
 
         # Create order
-        result = bash.run("""
+        result = sandbox.run(
+            """
             const order = await create_order({product: "widget", quantity: 3});
             console.log(order.order_id);
             await fs.writeFile('/workspace/last_order.txt', order.order_id);
-        """)
+        """,
+            language="javascript",
+        )
         assert "ord_1" in result
 
         # Verify inventory reduced
-        result = bash.run("""
+        result = sandbox.run(
+            """
             const stock = await check_inventory({product: "widget"});
             console.log(stock.in_stock);
-        """)
+        """,
+            language="javascript",
+        )
         assert "7" in result  # 10 - 3 = 7
 
         # Retrieve order
-        result = bash.run("""
+        result = sandbox.run(
+            """
             const orderId = await fs.readFile('/workspace/last_order.txt');
             const order = await get_order({order_id: orderId});
             console.log(order.status);
-        """)
+        """,
+            language="javascript",
+        )
         assert "created" in result
 
         print("  ✓ Complete order flow works correctly")
 
     def test_insufficient_stock() -> None:
-        result = bash.run("""
+        result = sandbox.run(
+            """
             const order = await create_order({product: "gadget", quantity: 100});
             console.log(order.error || "success");
-        """)
+        """,
+            language="javascript",
+        )
         assert "Insufficient" in result
         print("  ✓ Insufficient stock returns error")
 
@@ -446,20 +489,20 @@ TEST FIXTURE PATTERNS:
     # Factory function
     def create_test_bash(tools_list: list[Any] | None = None) -> Any:
         """Factory for creating test sandboxes."""
-        return create_bash_tool(tools=tools_list or [test_method])
+        return create_sandbox_tool(tools=tools_list or [test_method])
 
     print("Using test fixtures:")
 
     def test_with_factory() -> None:
-        bash = create_test_bash()
-        result = bash.run("console.log('test');")
+        sandbox = create_test_bash()
+        result = sandbox.run("console.log('test');", language="javascript")
         assert "test" in result
         print("  ✓ Factory creates working sandbox")
 
     def test_with_call_tracking() -> None:
         calls.clear()
-        bash = create_test_bash()
-        bash.run('await test_method({key: "value"});')
+        sandbox = create_test_bash()
+        sandbox.run('await test_method({key: "value"});', language="javascript")
 
         assert len(calls) == 1
         assert calls[0][0] == "test_method"
@@ -502,23 +545,23 @@ PYTEST EXAMPLE:
 
 # conftest.py
 import pytest
-from amla_sandbox import create_bash_tool
+from amla_sandbox import create_sandbox_tool
 
 @pytest.fixture
 def bash():
     '''Fresh sandbox for each test.'''
-    return create_bash_tool()
+    return create_sandbox_tool()
 
 @pytest.fixture
 def bash_with_tools():
     '''Sandbox with custom tools.'''
     def my_tool(param: str) -> dict:
         return {"param": param}
-    return create_bash_tool(tools=[my_tool])
+    return create_sandbox_tool(tools=[my_tool])
 
 # test_handlers.py
 def test_discount_handler(bash):
-    result = bash.run('''
+    result = sandbox.run('''
         const d = await calculate_discount({price: 100, percent: 20});
         console.log(d.final_price);
     ''')

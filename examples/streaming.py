@@ -22,7 +22,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 
-from amla_sandbox import create_bash_tool
+from amla_sandbox import create_sandbox_tool
 
 # =============================================================================
 # Part 1: Console Output Streaming
@@ -42,15 +42,18 @@ Multiple console.log() calls are concatenated with newlines.
 For real-time streaming, process output incrementally or use progress callbacks.
     """)
 
-    bash = create_bash_tool()
+    sandbox = create_sandbox_tool()
 
     # Basic output capture
     print("Basic output capture:")
-    result = bash.run("""
+    result = sandbox.run(
+        """
         console.log("Step 1: Initializing...");
         console.log("Step 2: Processing...");
         console.log("Step 3: Complete!");
-    """)
+    """,
+        language="javascript",
+    )
 
     # Process line by line
     for i, line in enumerate(result.strip().split("\n")):
@@ -87,11 +90,14 @@ def part2_progress_reporting() -> None:
         print(f"  [{update['percent']:5.1f}%] {message}")
         return {"acknowledged": True}
 
-    bash = create_bash_tool(tools=[report_progress])
+    sandbox = create_sandbox_tool(
+        tools=[report_progress],
+    )
 
     print("Running task with progress reporting:\n")
 
-    result = bash.run("""
+    result = sandbox.run(
+        """
         const items = ["users", "orders", "products", "analytics", "reports"];
         const total = items.length;
 
@@ -109,7 +115,9 @@ def part2_progress_reporting() -> None:
         }
 
         console.log("Export complete!");
-    """)
+    """,
+        language="javascript",
+    )
 
     print(f"\n{result.strip()}")
     print(f"\nTotal progress updates received: {len(progress_updates)}")
@@ -172,12 +180,14 @@ def part3_tool_monitoring() -> None:
         metrics.durations.append((time.time() - start) * 1000)
         return result
 
-    bash = create_bash_tool(tools=[data_fetch, data_process, data_store])
-    sandbox = bash.sandbox
+    sandbox = create_sandbox_tool(
+        tools=[data_fetch, data_process, data_store],
+    )
 
     print("Running operations with monitoring:\n")
 
-    sandbox.execute("""
+    sandbox.run(
+        """
         // Run some operations
         for (let i = 0; i < 5; i++) {
             await data_fetch({id: i});
@@ -188,7 +198,9 @@ def part3_tool_monitoring() -> None:
         }
 
         await data_store({final: true});
-    """)
+    """,
+        language="javascript",
+    )
 
     # Report metrics
     print("Tool Call Metrics:")
@@ -246,19 +258,23 @@ def part4_execution_tracing() -> None:
     step2 = make_traced_fn("step2")
     step3 = make_traced_fn("step3")
 
-    bash = create_bash_tool(tools=[step1, step2, step3])
-    sandbox = bash.sandbox
+    sandbox = create_sandbox_tool(
+        tools=[step1, step2, step3],
+    )
 
     # Mark execution start
     trace.append(TraceEvent(time.time(), "execution_start"))
 
-    sandbox.execute("""
+    sandbox.run(
+        """
         console.log("Starting workflow...");
         await step1({data: "initial"});
         await step2({transform: true});
         await step3({finalize: true});
         console.log("Workflow complete!");
-    """)
+    """,
+        language="javascript",
+    )
 
     # Mark execution end
     trace.append(TraceEvent(time.time(), "execution_end"))
@@ -331,20 +347,23 @@ def part5_health_checks() -> None:
         """Call external API."""
         return _check_service("external_api")
 
-    bash = create_bash_tool(
+    sandbox = create_sandbox_tool(
         tools=[database_query, cache_get, external_api_call],
         max_calls=100,
     )
 
     print("Running operations and tracking health:\n")
 
-    bash.run("""
+    sandbox.run(
+        """
         for (let i = 0; i < 10; i++) {
             try { await database_query({query_id: i}); } catch {}
             try { await cache_get({key: "user_" + i}); } catch {}
             try { await external_api_call({endpoint: "/status"}); } catch {}
         }
-    """)
+    """,
+        language="javascript",
+    )
 
     print("Service Health Report:")
     print("-" * 50)
@@ -445,20 +464,23 @@ def part6_observability_dashboard() -> None:
         """Product operations."""
         return _record_api_call("api_products")
 
-    bash = create_bash_tool(
+    sandbox = create_sandbox_tool(
         tools=[api_users, api_orders, api_products],
         max_calls=200,
     )
 
     print("Running workload for dashboard metrics...\n")
 
-    bash.run("""
+    sandbox.run(
+        """
         for (let i = 0; i < 50; i++) {
             await api_users({action: "list"});
             if (i % 2 === 0) await api_orders({action: "create"});
             if (i % 3 === 0) await api_products({action: "search"});
         }
-    """)
+    """,
+        language="javascript",
+    )
 
     # Print dashboard
     summary = dashboard.get_summary()

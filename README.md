@@ -10,7 +10,7 @@ Every popular agent framework runs LLM-generated code with `subprocess` or `exec
 | OpenHands | Docker container                 | [Runtime docs](https://docs.openhands.dev/modules/usage/architecture/runtime)                                                                        |
 | Aider     | Shell subprocess                 | [commands.py](https://github.com/Aider-AI/aider/blob/main/aider/commands.py)                                                                         |
 
-amla-sandbox is a WASM sandbox with capability enforcement. Agents can only call tools you explicitly provide, with constraints you define. No filesystem. No network. No shell escape.
+amla-sandbox is a WASM sandbox with capability enforcement. Agents can only call tools you explicitly provide, with constraints you define. Sandboxed virtual filesystem. No network. No shell escape.
 
 ```bash
 pip install amla-sandbox
@@ -19,16 +19,21 @@ pip install amla-sandbox
 No Docker. No VM. One binary, works everywhere.
 
 ```python
-from amla_sandbox import create_bash_tool
+from amla_sandbox import create_sandbox_tool
 
-bash = create_bash_tool(tools=[stripe_api, database])
+sandbox = create_sandbox_tool(tools=[stripe_api, database])
 
-# Agent writes one script instead of 10 tool calls
-result = bash.run('''
+# Agent writes one script instead of 10 tool calls (JavaScript)
+result = sandbox.run('''
     const txns = await stripe.listTransactions({customer: "cus_123"});
     const disputed = txns.filter(t => t.disputed);
     console.log(disputed[0]);
-''')
+''', language="javascript")
+
+# Or with shell pipelines
+result = sandbox.run('''
+    tool stripe.listTransactions --customer cus_123 | jq '[.[] | select(.disputed)] | .[0]'
+''', language="shell")
 ```
 
 ## Why this matters
@@ -84,26 +89,26 @@ The design draws from [capability-based security](https://en.wikipedia.org/wiki/
 ```python
 from amla_sandbox import create_sandbox_tool
 
-# Explicit language choice (recommended)
-sandbox = create_sandbox_tool(default_language="javascript")
-sandbox.run("console.log('hello'.toUpperCase())")  # -> "HELLO"
+sandbox = create_sandbox_tool()
 
-# Or shell-first
-shell = create_sandbox_tool(default_language="shell")
-shell.run("echo 'hello' | tr 'a-z' 'A-Z'")  # -> "HELLO"
+# JavaScript
+sandbox.run("console.log('hello'.toUpperCase())", language="javascript")  # -> "HELLO"
+
+# Shell
+sandbox.run("echo 'hello' | tr 'a-z' 'A-Z'", language="shell")  # -> "HELLO"
 
 # With tools
 def get_weather(city: str) -> dict:
     return {"city": city, "temp": 72}
 
-sandbox = create_sandbox_tool(tools=[get_weather], default_language="javascript")
-sandbox.run("const w = await get_weather({city: 'SF'}); console.log(w);")
+sandbox = create_sandbox_tool(tools=[get_weather])
+sandbox.run("const w = await get_weather({city: 'SF'}); console.log(w);", language="javascript")
 ```
 
 With constraints:
 
 ```python
-bash = create_bash_tool(
+sandbox = create_sandbox_tool(
     tools=[transfer_money],
     constraints={
         "transfer_money": {
@@ -117,15 +122,17 @@ bash = create_bash_tool(
 
 ## LangGraph
 
+For LangGraph integration:
+
 ```python
 from langgraph.prebuilt import create_react_agent
 from langchain_anthropic import ChatAnthropic
-from amla_sandbox import create_bash_tool
+from amla_sandbox import create_sandbox_tool
 
-bash = create_bash_tool(tools=[get_weather, search_db])
+sandbox = create_sandbox_tool(tools=[get_weather, search_db])
 agent = create_react_agent(
     ChatAnthropic(model="claude-sonnet-4-20250514"),
-    [bash.as_langchain_tool()]
+    [sandbox.as_langchain_tool()]  # LLM writes JS/shell that calls your tools
 )
 ```
 

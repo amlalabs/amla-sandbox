@@ -23,7 +23,7 @@ import os
 from typing import Any
 
 from amla_sandbox import (
-    create_bash_tool,
+    create_sandbox_tool,
     Sandbox,
     MethodCapability,
     ConstraintSet,
@@ -61,21 +61,21 @@ Together, they provide:
   3. EFFICIENCY - Code mode reduces token usage by 98%
 
 Integration patterns:
-  a) Simple: create_bash_tool() + as_langchain_tool()
+  a) Simple: create_sandbox_tool() + as_langchain_tool()
   b) Advanced: SandboxTool.from_functions(...) with constraints
   c) CodeAct: Agent writes code to accomplish tasks
     """)
 
 
 # =============================================================================
-# Part 2: Simple Integration with create_bash_tool
+# Part 2: Simple Integration with create_sandbox_tool
 # =============================================================================
 
 
 def part2_simple_integration() -> None:
     """The simplest way to use LangGraph with amla-sandbox."""
     print("\n" + "=" * 60)
-    print("Part 2: Simple Integration with create_bash_tool")
+    print("Part 2: Simple Integration with create_sandbox_tool")
     print("=" * 60)
 
     # Define some tools
@@ -109,13 +109,13 @@ def part2_simple_integration() -> None:
         return {"query": query, "results": products[:max_results]}
 
     # Create bash tool with Python functions
-    bash = create_bash_tool(
+    sandbox = create_sandbox_tool(
         tools=[get_weather, search_products],
         max_calls=50,  # Rate limit
     )
 
     # Get the LangChain-compatible tool
-    langchain_tool = bash.as_langchain_tool()
+    langchain_tool = sandbox.as_langchain_tool()
 
     print("Tool created and ready for LangGraph:")
     print(f"  Name: {langchain_tool.name}")
@@ -123,13 +123,16 @@ def part2_simple_integration() -> None:
 
     # Test the tool directly
     print("\nTesting tool execution:")
-    result = bash.run("""
+    result = sandbox.run(
+        """
         const weather = await get_weather({city: "Tokyo"});
         console.log("Weather in Tokyo:", JSON.stringify(weather));
 
         const products = await search_products({query: "laptop", max_results: 2});
         console.log("Found products:", products.results.length);
-    """)
+    """,
+        language="javascript",
+    )
     print(f"  {result}")
 
     # Show how it would be used with LangGraph
@@ -140,7 +143,7 @@ def part2_simple_integration() -> None:
     from langgraph.prebuilt import create_react_agent
 
     model = ChatAnthropic(model="claude-3-5-sonnet-20241022")
-    agent = create_react_agent(model, [bash.as_langchain_tool()])
+    agent = create_react_agent(model, [sandbox.as_langchain_tool()])
 
     result = agent.invoke({
         "messages": [("user", "What's the weather in Tokyo?")]
@@ -219,7 +222,7 @@ def part3_react_agent() -> None:
         }
 
     # Create bash tool with constraints
-    bash = create_bash_tool(
+    sandbox = create_sandbox_tool(
         tools=[lookup_order, check_inventory, create_support_ticket],
         constraints={
             "create_support_ticket": {
@@ -241,7 +244,8 @@ def part3_react_agent() -> None:
 
     # Test the tools
     print("\nTesting tool execution:")
-    result = bash.run("""
+    result = sandbox.run(
+        """
         // Look up an order
         const order = await lookup_order({order_id: "ORD-12345"});
         console.log("Order status:", order.status);
@@ -261,7 +265,9 @@ def part3_react_agent() -> None:
             priority: "high"
         });
         console.log("\\nTicket created:", ticket.ticket_id);
-    """)
+    """,
+        language="javascript",
+    )
     print(result)
 
     if has_api_key:
@@ -276,7 +282,7 @@ def part3_react_agent() -> None:
                     "ANTHROPIC_MODEL", "claude-3-5-sonnet-20241022"
                 )
             )
-            agent = create_react_agent(model, [bash.as_langchain_tool()])  # type: ignore[reportUnknownVariableType]
+            agent = create_react_agent(model, [sandbox.as_langchain_tool()])  # type: ignore[reportUnknownVariableType]
 
             result = agent.invoke(
                 {"messages": [("user", "Check the status of order ORD-12345")]}
@@ -496,14 +502,15 @@ This enables multi-turn conversations with stateful agents.
         """Update user preferences."""
         return {"user_id": user_id, "updated": preferences, "status": "success"}
 
-    bash = create_bash_tool(tools=[get_user_profile, update_preferences])
+    sandbox = create_sandbox_tool(tools=[get_user_profile, update_preferences])
 
     print("Multi-turn agent conversation:")
     print("-" * 40)
 
     # Turn 1: Initialize state
     print("\nTurn 1: User asks about their profile")
-    bash.run("""
+    sandbox.run(
+        """
         // Initialize state directory
         await fs.mkdir('/state', { recursive: true });
 
@@ -514,12 +521,15 @@ This enables multi-turn conversations with stateful agents.
         await fs.writeFile('/state/user.json', JSON.stringify(profile));
 
         console.log("Loaded profile for:", profile.name);
-    """)
+    """,
+        language="javascript",
+    )
     print("  [Agent stored user profile in /state/user.json]")
 
     # Turn 2: Reference previous state
     print("\nTurn 2: User asks to change theme")
-    result = bash.run("""
+    result = sandbox.run(
+        """
         // Load state from previous turn
         const profile = JSON.parse(await fs.readFile('/state/user.json'));
 
@@ -537,17 +547,22 @@ This enables multi-turn conversations with stateful agents.
         await fs.writeFile('/state/user.json', JSON.stringify(profile));
 
         console.log("Updated theme to:", profile.preferences.theme);
-    """)
+    """,
+        language="javascript",
+    )
     print(f"  {result}")
 
     # Turn 3: Show accumulated state
     print("\nTurn 3: Verify state persisted")
-    result = bash.run("""
+    result = sandbox.run(
+        """
         const profile = JSON.parse(await fs.readFile('/state/user.json'));
         console.log("User:", profile.name);
         console.log("Theme:", profile.preferences.theme);
         console.log("State persisted correctly!");
-    """)
+    """,
+        language="javascript",
+    )
     print(f"  {result}")
 
 
@@ -618,10 +633,11 @@ Code Mode: 1 LLM call that writes:
         call_count[0] += 1
         return {"sent_to": len(user_ids), "status": "success"}
 
-    bash = create_bash_tool(tools=[list_users, get_orders, send_bulk_email])
+    sandbox = create_sandbox_tool(tools=[list_users, get_orders, send_bulk_email])
 
     print("\nCode mode execution:")
-    result = bash.run("""
+    result = sandbox.run(
+        """
         // One script does everything
         const {users} = await list_users({});
 
@@ -643,7 +659,9 @@ Code Mode: 1 LLM call that writes:
             });
             console.log("Emails sent:", result.sent_to);
         }
-    """)
+    """,
+        language="javascript",
+    )
     print(f"  {result}")
     print("\n  This would take 10+ LLM calls in tool mode!")
     print("  With code mode: 1 LLM call generates the script above.")
@@ -717,12 +735,12 @@ PRODUCTION CHECKLIST
         def create_item(name: str, data: dict[str, Any]) -> dict[str, Any]:
             return {"id": f"item_{hash(name) % 10000}", "name": name}
 
-        bash = create_bash_tool(
+        sandbox = create_sandbox_tool(
             tools=[search, create_item],
             max_calls=limits,
         )
 
-        return bash, limits
+        return sandbox, limits
 
     # Create agents for different tiers
     for tier in ["free", "standard", "enterprise"]:
@@ -758,15 +776,15 @@ def main() -> None:
     print("""
 Key takeaways:
 
-1. create_bash_tool() + as_langchain_tool() for simple integration
+1. create_sandbox_tool() + as_langchain_tool() for simple integration
 2. Use Sandbox for fine-grained capability control
 3. VFS enables stateful multi-turn conversations
 4. Code mode is 10-100x more efficient than tool mode
 5. Always set appropriate rate limits and constraints
 
 Integration summary:
-  Simple:   bash = create_bash_tool(tools=[...])
-            agent = create_react_agent(model, [bash.as_langchain_tool()])
+  Simple:   sandbox = create_sandbox_tool(tools=[...])
+            agent = create_react_agent(model, [sandbox.as_langchain_tool()])
 
   Advanced: sandbox_tool = SandboxTool.from_functions([...], capabilities=[...])
             agent = create_react_agent(model, [sandbox_tool.as_langchain_tool()])

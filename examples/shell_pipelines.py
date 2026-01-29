@@ -20,7 +20,7 @@ Run:
 Time: ~15 minutes
 """
 
-from amla_sandbox import create_bash_tool
+from amla_sandbox import create_sandbox_tool
 
 # =============================================================================
 # Part 1: Available Shell Utilities
@@ -59,27 +59,27 @@ Note: These run INSIDE the WASM sandbox, not as subprocess calls.
 There's no shell escape possible.
     """)
 
-    bash = create_bash_tool()
+    sandbox = create_sandbox_tool()
 
     # Quick demo of each - use language="shell" for shell commands
     print("Quick demonstrations:")
 
-    output = bash.run("echo 'hello world' | grep 'world'", language="shell")
+    output = sandbox.run("echo 'hello world' | grep 'world'", language="shell")
     print(f"  grep: {output.strip()}")
 
-    output = bash.run("echo 'hello' | tr 'a-z' 'A-Z'", language="shell")
+    output = sandbox.run("echo 'hello' | tr 'a-z' 'A-Z'", language="shell")
     print(f"  tr: {output.strip()}")
 
-    output = bash.run("echo 'apple,banana,cherry' | cut -d',' -f2", language="shell")
+    output = sandbox.run("echo 'apple,banana,cherry' | cut -d',' -f2", language="shell")
     print(f"  cut: {output.strip()}")
 
-    output = bash.run("echo -e 'c\\na\\nb' | sort", language="shell")
+    output = sandbox.run("echo -e 'c\\na\\nb' | sort", language="shell")
     print(f"  sort: {output.strip().replace(chr(10), ', ')}")
 
-    output = bash.run("echo 'hello world' | wc -w", language="shell")
+    output = sandbox.run("echo 'hello world' | wc -w", language="shell")
     print(f"  wc -w: {output.strip()} words")
 
-    output = bash.run("echo '[1,2,3]' | jq '.[1]'", language="shell")
+    output = sandbox.run("echo '[1,2,3]' | jq '.[1]'", language="shell")
     print(f"  jq: {output.strip()}")
 
 
@@ -94,10 +94,11 @@ def part2_grep() -> None:
     print("Part 2: Text Search with grep")
     print("=" * 60)
 
-    bash = create_bash_tool()
+    sandbox = create_sandbox_tool()
 
     # Create sample data using JavaScript
-    bash.run("""
+    sandbox.run(
+        """
         const logData = `2024-01-15 10:00:01 INFO  Server started on port 8080
 2024-01-15 10:00:05 DEBUG Loading configuration
 2024-01-15 10:00:10 INFO  Connected to database
@@ -110,23 +111,25 @@ def part2_grep() -> None:
 2024-01-15 10:03:00 INFO  Shutting down gracefully`;
         await fs.writeFile('/workspace/server.log', logData);
         console.log("Created server.log");
-    """)
+    """,
+        language="javascript",
+    )
 
     # Basic grep - find all errors
     print("\nFind all ERROR lines:")
-    output = bash.run("cat /workspace/server.log | grep 'ERROR'", language="shell")
+    output = sandbox.run("cat /workspace/server.log | grep 'ERROR'", language="shell")
     print(f"  {output.strip().replace(chr(10), chr(10) + '  ')}")
 
     # Case-insensitive search (-i)
     print("\nCase-insensitive search for 'error' or 'warn':")
-    output = bash.run(
+    output = sandbox.run(
         "cat /workspace/server.log | grep -iE 'error|warn'", language="shell"
     )
     print(f"  {output.strip().replace(chr(10), chr(10) + '  ')}")
 
     # Invert match (-v) - show non-DEBUG lines
     print("\nAll non-DEBUG lines (first 3):")
-    output = bash.run(
+    output = sandbox.run(
         "cat /workspace/server.log | grep -v 'DEBUG' | head -3", language="shell"
     )
     for line in output.strip().split("\n"):
@@ -134,11 +137,15 @@ def part2_grep() -> None:
 
     # Count matches (-c)
     print("\nCount of each log level:")
-    output = bash.run("cat /workspace/server.log | grep -c 'INFO'", language="shell")
+    output = sandbox.run("cat /workspace/server.log | grep -c 'INFO'", language="shell")
     print(f"  INFO:  {output.strip()}")
-    output = bash.run("cat /workspace/server.log | grep -c 'DEBUG'", language="shell")
+    output = sandbox.run(
+        "cat /workspace/server.log | grep -c 'DEBUG'", language="shell"
+    )
     print(f"  DEBUG: {output.strip()}")
-    output = bash.run("cat /workspace/server.log | grep -c 'ERROR'", language="shell")
+    output = sandbox.run(
+        "cat /workspace/server.log | grep -c 'ERROR'", language="shell"
+    )
     print(f"  ERROR: {output.strip()}")
 
 
@@ -153,29 +160,29 @@ def part3_tr() -> None:
     print("Part 3: Character Translation with tr")
     print("=" * 60)
 
-    bash = create_bash_tool()
+    sandbox = create_sandbox_tool()
 
     print("tr examples:")
 
     # Uppercase
-    output = bash.run("echo 'hello world' | tr 'a-z' 'A-Z'", language="shell")
+    output = sandbox.run("echo 'hello world' | tr 'a-z' 'A-Z'", language="shell")
     print(f"  Uppercase: {output.strip()}")
 
     # Lowercase
-    output = bash.run("echo 'HELLO WORLD' | tr 'A-Z' 'a-z'", language="shell")
+    output = sandbox.run("echo 'HELLO WORLD' | tr 'A-Z' 'a-z'", language="shell")
     print(f"  Lowercase: {output.strip()}")
 
     # Delete characters (-d)
-    output = bash.run("echo 'hello 123 world 456' | tr -d '0-9'", language="shell")
+    output = sandbox.run("echo 'hello 123 world 456' | tr -d '0-9'", language="shell")
     print(f"  Delete digits: {output.strip()}")
 
     # Replace characters
-    output = bash.run("echo 'hello-world_test' | tr '-_' '  '", language="shell")
+    output = sandbox.run("echo 'hello-world_test' | tr '-_' '  '", language="shell")
     print(f"  Replace chars: {output.strip()}")
 
     # Practical: Normalize whitespace
     print("\nPractical: Normalize CSV separators")
-    output = bash.run("echo 'a;b;c' | tr ';' ','", language="shell")
+    output = sandbox.run("echo 'a;b;c' | tr ';' ','", language="shell")
     print(f"  Normalized: {output.strip()}")
 
 
@@ -190,10 +197,11 @@ def part4_cut() -> None:
     print("Part 4: Field Extraction with cut")
     print("=" * 60)
 
-    bash = create_bash_tool()
+    sandbox = create_sandbox_tool()
 
     # Create sample CSV data
-    bash.run("""
+    sandbox.run(
+        """
         const csv = `name,department,salary
 Alice,Engineering,95000
 Bob,Sales,75000
@@ -201,30 +209,32 @@ Charlie,Engineering,85000
 Diana,Marketing,70000`;
         await fs.writeFile('/workspace/employees.csv', csv);
         console.log("Created employees.csv");
-    """)
+    """,
+        language="javascript",
+    )
 
     print("\ncut examples:")
 
     # Extract column by position
-    output = bash.run(
+    output = sandbox.run(
         "cat /workspace/employees.csv | cut -d',' -f1 | head -4", language="shell"
     )
     print(f"  Column 1 (name): {output.strip().replace(chr(10), ', ')}")
 
     # Extract column 2
-    output = bash.run(
+    output = sandbox.run(
         "cat /workspace/employees.csv | cut -d',' -f2 | head -4", language="shell"
     )
     print(f"  Column 2 (dept): {output.strip().replace(chr(10), ', ')}")
 
     # Multiple columns
-    output = bash.run(
+    output = sandbox.run(
         "cat /workspace/employees.csv | cut -d',' -f1,3 | head -4", language="shell"
     )
     print(f"  Columns 1,3: {output.strip().replace(chr(10), ' | ')}")
 
     # Character positions (-c)
-    output = bash.run("echo 'Hello World' | cut -c1-5", language="shell")
+    output = sandbox.run("echo 'Hello World' | cut -c1-5", language="shell")
     print(f"  First 5 chars: {output.strip()}")
 
 
@@ -239,10 +249,11 @@ def part5_jq() -> None:
     print("Part 5: JSON Processing with jq")
     print("=" * 60)
 
-    bash = create_bash_tool()
+    sandbox = create_sandbox_tool()
 
     # Create sample JSON data
-    bash.run("""
+    sandbox.run(
+        """
         const data = {
             "users": [
                 {"id": 1, "name": "Alice", "role": "admin", "active": true, "salary": 95000},
@@ -254,47 +265,49 @@ def part5_jq() -> None:
         };
         await fs.writeFile('/workspace/users.json', JSON.stringify(data));
         console.log("Created users.json");
-    """)
+    """,
+        language="javascript",
+    )
 
     print("\njq examples:")
 
     # Access nested fields
-    output = bash.run("cat /workspace/users.json | jq '.metadata'", language="shell")
+    output = sandbox.run("cat /workspace/users.json | jq '.metadata'", language="shell")
     print(f"  Access nested: {output.strip()}")
 
     # Array access
-    output = bash.run(
+    output = sandbox.run(
         "cat /workspace/users.json | jq '.users[0].name'", language="shell"
     )
     print(f"  First user: {output.strip()}")
 
     # Get all names
-    output = bash.run(
+    output = sandbox.run(
         "cat /workspace/users.json | jq '.users[].name'", language="shell"
     )
     print(f"  All names: {output.strip().replace(chr(10), ', ')}")
 
     # Filter array (like WHERE clause)
-    output = bash.run(
+    output = sandbox.run(
         "cat /workspace/users.json | jq '.users[] | select(.active == true) | .name'",
         language="shell",
     )
     print(f"  Active users: {output.strip().replace(chr(10), ', ')}")
 
     # Count
-    output = bash.run(
+    output = sandbox.run(
         "cat /workspace/users.json | jq '.users | length'", language="shell"
     )
     print(f"  User count: {output.strip()}")
 
     # Sum (like SQL SUM)
-    output = bash.run(
+    output = sandbox.run(
         "cat /workspace/users.json | jq '[.users[].salary] | add'", language="shell"
     )
     print(f"  Total salary: ${output.strip()}")
 
     # Sort
-    output = bash.run(
+    output = sandbox.run(
         "cat /workspace/users.json | jq '.users | sort_by(.salary) | reverse | .[].name'",
         language="shell",
     )
@@ -312,10 +325,11 @@ def part6_sort_and_uniq() -> None:
     print("Part 6: Sorting and Deduplication")
     print("=" * 60)
 
-    bash = create_bash_tool()
+    sandbox = create_sandbox_tool()
 
     # Create sample data
-    bash.run("""
+    sandbox.run(
+        """
         await fs.writeFile('/workspace/access.log', `192.168.1.100
 192.168.1.105
 192.168.1.100
@@ -326,37 +340,41 @@ def part6_sort_and_uniq() -> None:
 192.168.1.200
 192.168.1.100`);
         console.log("Created access.log");
-    """)
+    """,
+        language="javascript",
+    )
 
     print("\nsort examples:")
 
     # Basic sort
-    output = bash.run("echo -e 'banana\\napple\\ncherry' | sort", language="shell")
+    output = sandbox.run("echo -e 'banana\\napple\\ncherry' | sort", language="shell")
     print(f"  Alphabetical: {output.strip().replace(chr(10), ', ')}")
 
     # Reverse sort
-    output = bash.run("echo -e 'banana\\napple\\ncherry' | sort -r", language="shell")
+    output = sandbox.run(
+        "echo -e 'banana\\napple\\ncherry' | sort -r", language="shell"
+    )
     print(f"  Reverse: {output.strip().replace(chr(10), ', ')}")
 
     # Numeric sort
-    output = bash.run("echo -e '10\\n2\\n100\\n5' | sort -n", language="shell")
+    output = sandbox.run("echo -e '10\\n2\\n100\\n5' | sort -n", language="shell")
     print(f"  Numeric: {output.strip().replace(chr(10), ', ')}")
 
     print("\nuniq examples:")
 
     # Remove adjacent duplicates (requires sorted input)
-    output = bash.run("cat /workspace/access.log | sort | uniq", language="shell")
+    output = sandbox.run("cat /workspace/access.log | sort | uniq", language="shell")
     print(f"  Unique IPs: {output.strip().replace(chr(10), ', ')}")
 
     # Count occurrences
-    output = bash.run(
+    output = sandbox.run(
         "cat /workspace/access.log | sort | uniq -c | sort -rn", language="shell"
     )
     print(f"  IP frequency:\n  {output.strip().replace(chr(10), chr(10) + '  ')}")
 
     # Top N pattern (very common!)
     print("\nTop 2 most frequent IPs:")
-    output = bash.run(
+    output = sandbox.run(
         "cat /workspace/access.log | sort | uniq -c | sort -rn | head -2",
         language="shell",
     )
@@ -374,10 +392,11 @@ def part7_complete_pipeline() -> None:
     print("Part 7: Complete Pipeline Example")
     print("=" * 60)
 
-    bash = create_bash_tool()
+    sandbox = create_sandbox_tool()
 
     # Create realistic log data as JSON
-    bash.run("""
+    sandbox.run(
+        """
         const logs = [];
         const endpoints = ['/api/users', '/api/orders', '/api/products', '/api/auth'];
         const statuses = [200, 200, 200, 200, 201, 400, 401, 404, 500];
@@ -391,13 +410,15 @@ def part7_complete_pipeline() -> None:
 
         await fs.writeFile('/workspace/api.log', logs.map(l => JSON.stringify(l)).join('\\n'));
         console.log("Created api.log with " + logs.length + " entries");
-    """)
+    """,
+        language="javascript",
+    )
 
     print("\nAnalyzing API logs with jq...")
 
     # Analysis 1: Request distribution by endpoint
     print("\n1. Requests by endpoint:")
-    output = bash.run(
+    output = sandbox.run(
         "cat /workspace/api.log | jq -s 'group_by(.endpoint) | map({endpoint: .[0].endpoint, count: length}) | sort_by(.count) | reverse'",
         language="shell",
     )
@@ -405,9 +426,9 @@ def part7_complete_pipeline() -> None:
 
     # Analysis 2: Error rate (4xx and 5xx)
     print("\n2. Error analysis:")
-    output = bash.run("cat /workspace/api.log | jq -s 'length'", language="shell")
+    output = sandbox.run("cat /workspace/api.log | jq -s 'length'", language="shell")
     total = output.strip()
-    output = bash.run(
+    output = sandbox.run(
         "cat /workspace/api.log | jq -s '[.[] | select(.status >= 400)] | length'",
         language="shell",
     )
@@ -417,7 +438,7 @@ def part7_complete_pipeline() -> None:
 
     # Analysis 3: Average response time by endpoint
     print("\n3. Average response time by endpoint:")
-    output = bash.run(
+    output = sandbox.run(
         """cat /workspace/api.log | jq -s 'group_by(.endpoint) | map({endpoint: .[0].endpoint, avg_ms: ([.[].duration_ms] | add / length | floor)}) | sort_by(.avg_ms)'""",
         language="shell",
     )
@@ -435,10 +456,11 @@ def part8_shell_and_js() -> None:
     print("Part 8: Combining Shell and JavaScript")
     print("=" * 60)
 
-    bash = create_bash_tool()
+    sandbox = create_sandbox_tool()
 
     # Use shell for text processing, JS for complex logic
-    output = bash.run("""
+    output = sandbox.run(
+        """
         // Create sample order data
         const orders = [
             {id: 1, customer: "Alice", items: [{name: "Widget", price: 25.99, qty: 2}], status: "completed"},
@@ -473,7 +495,9 @@ def part8_shell_and_js() -> None:
         for (const [customer, data] of Object.entries(customerTotals)) {
             console.log("  " + customer + ": " + data.orders + " orders, $" + data.total.toFixed(2));
         }
-    """)
+    """,
+        language="javascript",
+    )
     print(output)
 
 

@@ -11,7 +11,7 @@ Supported frameworks:
 Example::
 
     from langchain.tools import tool
-    from amla_sandbox import create_bash_tool
+    from amla_sandbox import create_sandbox_tool
     from amla_sandbox.tools import from_langchain
 
     @tool
@@ -21,7 +21,7 @@ Example::
 
     # Ingest LangChain tools
     tools, definitions = from_langchain([search])
-    bash = create_bash_tool(tools=tools)
+    bash = create_sandbox_tool(tools=tools)
 """
 
 from __future__ import annotations
@@ -65,8 +65,8 @@ def from_langchain(
         # Convert to amla-sandbox format
         funcs, defs = from_langchain([search, calculate])
 
-        # Use with create_bash_tool
-        bash = create_bash_tool(tools=funcs)
+        # Use with create_sandbox_tool
+        bash = create_sandbox_tool(tools=funcs)
 
     Note:
         For BaseTool subclasses, the tool's _run method is used as the callable.
@@ -173,13 +173,24 @@ def from_openai_tools(
 ) -> tuple[list[Callable[..., Any]], list[ToolDefinition]]:
     """Convert OpenAI function calling tools to amla-sandbox format.
 
+    Important: This returns a tuple that must be unpacked. The functions and
+    definitions are paired by index - funcs[i] implements defs[i].
+
     Args:
         tools: List of OpenAI tool definitions in function calling format.
         handlers: Optional dict mapping function names to callable handlers.
-            If not provided, placeholder functions are created.
+            If not provided, placeholder functions are created that raise
+            NotImplementedError when called.
 
     Returns:
-        Tuple of (callable_functions, tool_definitions).
+        Tuple of (callable_functions, tool_definitions). Use tuple unpacking::
+
+            funcs, defs = from_openai_tools(tools, handlers={...})
+
+        The handler functions will have their __name__ set to match the tool
+        definition name, so you can build handler maps with::
+
+            handler_map = {f.__name__: f for f in funcs}
 
     Example::
 
@@ -200,13 +211,17 @@ def from_openai_tools(
             }
         ]
 
-        def get_weather(city: str) -> dict:
+        def my_weather_handler(city: str) -> dict:
             return {"temp": 22, "city": city}
 
+        # Unpack the tuple
         funcs, defs = from_openai_tools(
             openai_tools,
-            handlers={"get_weather": get_weather}
+            handlers={"get_weather": my_weather_handler}
         )
+
+        # funcs[0].__name__ == "get_weather" (matches definition)
+        # defs[0].name == "get_weather"
     """
     callables: list[Callable[..., Any]] = []
     definitions: list[ToolDefinition] = []
@@ -241,6 +256,8 @@ def _convert_openai_tool(
     # Get handler or create placeholder
     if name in handlers:
         func = handlers[name]
+        # Set __name__ to match tool definition for consistent handler mapping
+        func.__name__ = name
     else:
         # Create a placeholder that raises an error
         def make_placeholder(tool_name: str) -> Callable[..., Any]:
@@ -322,6 +339,8 @@ def _convert_anthropic_tool(
     # Get handler or create placeholder
     if name in handlers:
         func = handlers[name]
+        # Set __name__ to match tool definition for consistent handler mapping
+        func.__name__ = name
     else:
 
         def make_placeholder(tool_name: str) -> Callable[..., Any]:

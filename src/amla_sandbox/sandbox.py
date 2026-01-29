@@ -178,7 +178,7 @@ class Sandbox:
 
             # Also set default capabilities if not provided
             if not self.capabilities:
-                # Use object.__setattr__ because we're a frozen dataclass
+                # Use object.__setattr__ to set field during __post_init__
                 object.__setattr__(
                     self,
                     "capabilities",

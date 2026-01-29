@@ -14,7 +14,7 @@ from typing import Any
 from datetime import datetime
 
 from amla_sandbox import (
-    create_bash_tool,
+    create_sandbox_tool,
 )
 
 
@@ -149,7 +149,7 @@ def main() -> None:
     print("Can: View customer data, small refunds (<$50), send emails")
     print("Cannot: Large refunds, discounts, escalations\n")
 
-    level1_agent = create_bash_tool(
+    level1_sandbox = create_sandbox_tool(
         tools=[get_customer, get_orders, issue_refund, send_email],
         constraints={
             "issue_refund": {
@@ -164,7 +164,8 @@ def main() -> None:
     )
 
     # Simulate ticket handling
-    result = level1_agent.run("""
+    result = level1_sandbox.run(
+        """
         // Ticket: Customer C001 reports damaged item, wants refund
 
         // Step 1: Get customer info
@@ -195,14 +196,16 @@ def main() -> None:
             subject: "Your refund request",
             body: "We're processing your refund request..."
         });
-    """)
+    """,
+        language="javascript",
+    )
     print(result)
 
     # --- Level 2 Support Agent (More Capabilities) ---
     print("\n=== Level 2 Support Agent ===")
     print("Can: Larger refunds (<$500), discounts (<20%), escalations\n")
 
-    level2_agent = create_bash_tool(
+    level2_sandbox = create_sandbox_tool(
         tools=[
             get_customer,
             get_orders,
@@ -228,7 +231,8 @@ def main() -> None:
         },
     )
 
-    result = level2_agent.run("""
+    result = level2_sandbox.run(
+        """
         // Ticket: Customer C001 unhappy with service, high-value order issue
 
         const customer = await get_customer({customer_id: "C001"});
@@ -260,13 +264,16 @@ def main() -> None:
         });
 
         console.log("\\nTicket resolved with refund + discount");
-    """)
+    """,
+        language="javascript",
+    )
     print(result)
 
     # --- Constraint Violation Example ---
     print("\n=== Constraint Enforcement Example ===")
 
-    result = level1_agent.run("""
+    result = level1_sandbox.run(
+        """
         // L1 agent tries to issue a large refund
 
         try {
@@ -290,13 +297,16 @@ def main() -> None:
         } catch (e) {
             console.log("Refund blocked: reason not in allowed list");
         }
-    """)
+    """,
+        language="javascript",
+    )
     print(result)
 
     # --- Multi-Step Resolution Flow ---
     print("\n=== Multi-Step Resolution Flow ===")
 
-    result = level2_agent.run("""
+    result = level2_sandbox.run(
+        """
         // Complex ticket: Multiple issues to resolve
 
         const customerId = "C001";
@@ -343,7 +353,9 @@ def main() -> None:
         console.log("4. Confirmation email sent");
 
         console.log("\\n=== Ticket Closed ===");
-    """)
+    """,
+        language="javascript",
+    )
     print(result)
 
 

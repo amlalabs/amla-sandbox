@@ -15,7 +15,7 @@ from amla_sandbox import (
     ConstraintSet,
     Param,
     ToolDefinition,
-    create_bash_tool,
+    create_sandbox_tool,
 )
 
 
@@ -317,8 +317,8 @@ def main() -> None:
         f"    delete_document: {'allowed' if enterprise_sandbox.can_call('delete_document', {'tenant_id': 'tenant-ent', 'document_id': 'x'}) else 'DENIED'}"
     )
 
-    # --- Example 3: Practical Multi-Tenant with create_bash_tool ---
-    print("\n--- Multi-Tenant API with create_bash_tool ---")
+    # --- Example 3: Practical Multi-Tenant with create_sandbox_tool ---
+    print("\n--- Multi-Tenant API with create_sandbox_tool ---")
     data_store: dict[str, dict[str, Any]] = {
         "tenant-1": {
             "users": [{"id": 1, "name": "Alice"}],
@@ -349,7 +349,7 @@ def main() -> None:
 
     def create_tenant_api(tenant_id: str) -> Any:
         """Create a tenant-scoped API."""
-        return create_bash_tool(
+        return create_sandbox_tool(
             tools=[get_users, get_settings, update_settings],
             constraints={
                 # All tools must use this tenant_id
@@ -365,7 +365,8 @@ def main() -> None:
     _tenant2_api = create_tenant_api("tenant-2")  # Available for testing
 
     print("Tenant 1 API:")
-    result = tenant1_api.run("""
+    result = tenant1_api.run(
+        """
         // Can access own data
         const users = await get_users({tenant_id: "tenant-1"});
         console.log("Tenant 1 users:", users.users.length);
@@ -381,7 +382,9 @@ def main() -> None:
         } catch (e) {
             console.log("Cross-tenant access: BLOCKED (correct!)");
         }
-    """)
+    """,
+        language="javascript",
+    )
     print(result)
 
     # Shared Resources with Scoped Access
@@ -428,7 +431,7 @@ def main() -> None:
         tenant_custom_templates[tenant_id][template_id] = content
         return {"saved": True, "template_id": template_id, "tenant_id": tenant_id}
 
-    shared_resource_bash = create_bash_tool(
+    shared_resource_sandbox = create_sandbox_tool(
         tools=[get_template, save_custom_template],
         constraints={
             # Templates can be read for any tenant (enforced by handler logic)
@@ -441,7 +444,8 @@ def main() -> None:
     )
 
     print("Shared resource access:")
-    result = shared_resource_bash.run("""
+    result = shared_resource_sandbox.run(
+        """
         // Read shared template
         const invoice = await get_template({template_id: "invoice", tenant_id: "tenant-1"});
         console.log("Invoice template source:", invoice.source);
@@ -473,7 +477,9 @@ def main() -> None:
         } catch (e) {
             console.log("Cross-tenant save: BLOCKED (correct!)");
         }
-    """)
+    """,
+        language="javascript",
+    )
     print(result)
 
 

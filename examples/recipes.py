@@ -23,7 +23,7 @@ from amla_sandbox import (
     MethodCapability,
     Sandbox,
     SandboxTool,
-    create_bash_tool,
+    create_sandbox_tool,
 )
 
 
@@ -38,22 +38,27 @@ def recipe_quick_shell() -> None:
     print("Recipe: Quick Shell Commands")
     print("=" * 60)
 
-    bash = create_bash_tool()
+    sandbox = create_sandbox_tool()
 
     # Simple command
-    result = bash.run("echo 'Hello World'")
+    result = sandbox.run("echo 'Hello World'", language="shell")
     print(f"Echo: {result}")
 
     # Pipeline
-    result = bash.run("echo 'apple banana cherry' | tr ' ' '\\n' | sort")
+    result = sandbox.run(
+        "echo 'apple banana cherry' | tr ' ' '\\n' | sort", language="shell"
+    )
     print(f"Sorted: {result}")
 
     # Multiple commands
-    result = bash.run("""
+    result = sandbox.run(
+        """
         echo 'Line 1' > /workspace/test.txt
         echo 'Line 2' >> /workspace/test.txt
         cat /workspace/test.txt
-    """)
+    """,
+        language="shell",
+    )
     print(f"Multi-command: {result}")
 
 
@@ -68,7 +73,7 @@ def recipe_json_processing() -> None:
     print("Recipe: JSON Processing with jq")
     print("=" * 60)
 
-    bash = create_bash_tool()
+    sandbox = create_sandbox_tool()
 
     # Write JSON data
     data = json.dumps(
@@ -82,15 +87,21 @@ def recipe_json_processing() -> None:
     )
 
     # Extract with jq
-    result = bash.run(f"""
+    result = sandbox.run(
+        f"""
         echo '{data}' | jq '.users[] | select(.role == "admin") | .name'
-    """)
+    """,
+        language="shell",
+    )
     print(f"Admins: {result}")
 
     # Transform JSON
-    result = bash.run(f"""
+    result = sandbox.run(
+        f"""
         echo '{data}' | jq '[.users[] | {{username: .name, isAdmin: (.role == "admin")}}]'
-    """)
+    """,
+        language="shell",
+    )
     print(f"Transformed: {result}")
 
 
@@ -105,10 +116,11 @@ def recipe_log_analysis() -> None:
     print("Recipe: Log Analysis")
     print("=" * 60)
 
-    bash = create_bash_tool()
+    sandbox = create_sandbox_tool()
 
     # Create sample log
-    bash.run(r"""
+    sandbox.run(
+        r"""
         cat > /workspace/app.log << 'EOF'
 2024-01-15 10:00:01 INFO User login: alice
 2024-01-15 10:00:05 ERROR Database connection failed
@@ -117,16 +129,21 @@ def recipe_log_analysis() -> None:
 2024-01-15 10:00:20 ERROR API timeout
 2024-01-15 10:00:25 INFO User logout: alice
 EOF
-    """)
+    """,
+        language="shell",
+    )
 
     # Count by log level
-    result = bash.run("""
+    result = sandbox.run(
+        """
         cat /workspace/app.log | cut -d' ' -f3 | sort | uniq -c | sort -rn
-    """)
+    """,
+        language="shell",
+    )
     print(f"Log levels:\n{result}")
 
     # Find errors
-    result = bash.run("grep ERROR /workspace/app.log")
+    result = sandbox.run("grep ERROR /workspace/app.log", language="shell")
     print(f"Errors:\n{result}")
 
 
@@ -141,10 +158,11 @@ def recipe_csv_processing() -> None:
     print("Recipe: CSV Processing")
     print("=" * 60)
 
-    bash = create_bash_tool()
+    sandbox = create_sandbox_tool()
 
     # Create CSV
-    bash.run("""
+    sandbox.run(
+        """
         cat > /workspace/sales.csv << 'EOF'
 date,product,quantity,price
 2024-01-01,Widget,10,25.00
@@ -153,10 +171,13 @@ date,product,quantity,price
 2024-01-04,Gadget,8,50.00
 2024-01-05,Widget,20,25.00
 EOF
-    """)
+    """,
+        language="shell",
+    )
 
     # Sum by product using JavaScript (CSV processing is easier in JS)
-    result = bash.run("""
+    result = sandbox.run(
+        """
         const csv = await fs.readFile('/workspace/sales.csv');
         const lines = csv.trim().split('\\n').slice(1);  // Skip header
 
@@ -169,11 +190,14 @@ EOF
         for (const [product, total] of Object.entries(byProduct)) {
             console.log(`${product}: $${total.toFixed(2)}`);
         }
-    """)
+    """,
+        language="javascript",
+    )
     print(f"Sales by product:\n{result}")
 
     # Total revenue
-    result = bash.run("""
+    result = sandbox.run(
+        """
         const csv = await fs.readFile('/workspace/sales.csv');
         const lines = csv.trim().split('\\n').slice(1);
 
@@ -183,7 +207,9 @@ EOF
             total += parseFloat(parts[2]) * parseFloat(parts[3]);
         }
         console.log('$' + total.toFixed(2));
-    """)
+    """,
+        language="javascript",
+    )
     print(f"Total revenue: {result}")
 
 
@@ -211,7 +237,7 @@ def recipe_constrained_tool() -> None:
         }
 
     # Create tool with constraints
-    bash = create_bash_tool(
+    sandbox = create_sandbox_tool(
         tools=[transfer_money],
         constraints={
             "transfer_money": {
@@ -221,14 +247,17 @@ def recipe_constrained_tool() -> None:
     )
 
     # Valid transfer
-    result = bash.run("""
+    result = sandbox.run(
+        """
         const result = await transfer_money({
             from_account: "checking",
             to_account: "savings",
             amount: 500
         });
         console.log(JSON.stringify(result));
-    """)
+    """,
+        language="javascript",
+    )
     print(f"Transfer: {result}")
 
 
@@ -255,10 +284,11 @@ def recipe_multiple_tools() -> None:
         """Send an email."""
         return {"sent": True, "to": to, "subject": subject, "bodyLength": len(body)}
 
-    bash = create_bash_tool(tools=[get_user, send_email])
+    sandbox = create_sandbox_tool(tools=[get_user, send_email])
 
     # Compose tools
-    result = bash.run("""
+    result = sandbox.run(
+        """
         // Get user and send them an email
         const user = await get_user({user_id: "u1"});
         if (user.email) {
@@ -269,7 +299,9 @@ def recipe_multiple_tools() -> None:
             });
             console.log(JSON.stringify({user, email}));
         }
-    """)
+    """,
+        language="javascript",
+    )
     print(f"Result: {result}")
 
 
@@ -284,10 +316,11 @@ def recipe_vfs_operations() -> None:
     print("Recipe: VFS Operations")
     print("=" * 60)
 
-    bash = create_bash_tool()
+    sandbox = create_sandbox_tool()
 
     # Write and read JSON
-    result = bash.run("""
+    result = sandbox.run(
+        """
         // Write JSON
         const data = {items: [1, 2, 3], total: 6};
         await fs.writeFile('/workspace/data.json', JSON.stringify(data, null, 2));
@@ -296,17 +329,22 @@ def recipe_vfs_operations() -> None:
         const content = await fs.readFile('/workspace/data.json');
         const parsed = JSON.parse(content);
         console.log('Total:', parsed.total);
-    """)
+    """,
+        language="javascript",
+    )
     print(f"VFS result: {result}")
 
     # Directory operations
-    result = bash.run("""
+    result = sandbox.run(
+        """
         await fs.mkdir('/workspace/reports', {recursive: true});
         await fs.writeFile('/workspace/reports/q1.txt', 'Q1 Report');
         await fs.writeFile('/workspace/reports/q2.txt', 'Q2 Report');
         const files = await fs.readdir('/workspace/reports');
         console.log('Files:', files.join(', '));
-    """)
+    """,
+        language="javascript",
+    )
     print(f"Directory: {result}")
 
 
@@ -330,9 +368,10 @@ def recipe_data_pipeline() -> None:
             {"id": 4, "customer": "Alice", "total": 50.00, "status": "completed"},
         ]
 
-    bash = create_bash_tool(tools=[fetch_orders])
+    sandbox = create_sandbox_tool(tools=[fetch_orders])
 
-    result = bash.run("""
+    result = sandbox.run(
+        """
         // Fetch data
         const orders = await fetch_orders({});
 
@@ -349,7 +388,9 @@ def recipe_data_pipeline() -> None:
         }
 
         console.log(JSON.stringify(byCustomer, null, 2));
-    """)
+    """,
+        language="javascript",
+    )
     print(f"Customer totals:\n{result}")
 
 
@@ -370,9 +411,10 @@ def recipe_error_handling() -> None:
             raise ValueError("Operation failed!")
         return {"status": "success"}
 
-    bash = create_bash_tool(tools=[risky_operation])
+    sandbox = create_sandbox_tool(tools=[risky_operation])
 
-    result = bash.run("""
+    result = sandbox.run(
+        """
         // Try-catch for error handling
         let results = [];
 
@@ -391,7 +433,9 @@ def recipe_error_handling() -> None:
         }
 
         console.log(JSON.stringify(results, null, 2));
-    """)
+    """,
+        language="javascript",
+    )
     print(f"Results:\n{result}")
 
 
@@ -438,9 +482,10 @@ def recipe_batch_processing() -> None:
         """Process a single item."""
         return {"id": item_id, "processed": True, "result": item_id * 2}
 
-    bash = create_bash_tool(tools=[process_item])
+    sandbox = create_sandbox_tool(tools=[process_item])
 
-    result = bash.run("""
+    result = sandbox.run(
+        """
         // Process items in batches of 3
         const items = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
         const batchSize = 3;
@@ -458,7 +503,9 @@ def recipe_batch_processing() -> None:
 
         console.log('\\nFinal results:', results.length, 'items');
         console.log(JSON.stringify(results.slice(0, 3), null, 2));
-    """)
+    """,
+        language="javascript",
+    )
     print(f"Batch processing:\n{result}")
 
 
@@ -473,9 +520,10 @@ def recipe_config_management() -> None:
     print("Recipe: Configuration Management")
     print("=" * 60)
 
-    bash = create_bash_tool()
+    sandbox = create_sandbox_tool()
 
-    result = bash.run("""
+    result = sandbox.run(
+        """
         // Write config
         const config = {
             database: {
@@ -506,7 +554,9 @@ def recipe_config_management() -> None:
 
         console.log('Merged config:');
         console.log(JSON.stringify(merged, null, 2));
-    """)
+    """,
+        language="javascript",
+    )
     print(f"Config:\n{result}")
 
 
@@ -521,9 +571,10 @@ def recipe_text_templating() -> None:
     print("Recipe: Text Templating")
     print("=" * 60)
 
-    bash = create_bash_tool()
+    sandbox = create_sandbox_tool()
 
-    result = bash.run(r"""
+    result = sandbox.run(
+        r"""
         // Simple template function
         function template(str, data) {
             return str.replace(/\{\{(\w+)\}\}/g, (_, key) => data[key] || '');
@@ -539,7 +590,9 @@ def recipe_text_templating() -> None:
         for (const data of messages) {
             console.log(template(tmpl, data));
         }
-    """)
+    """,
+        language="javascript",
+    )
     print(f"Templates:\n{result}")
 
 
@@ -574,10 +627,13 @@ def recipe_langgraph_tool() -> None:
     )
 
     # Can also run directly
-    result = sandbox_tool.run("""
+    result = sandbox_tool.run(
+        """
         const results = await search_database({query: "python tutorials"});
         console.log(JSON.stringify(results, null, 2));
-    """)
+    """,
+        language="javascript",
+    )
     print(f"Direct run result:\n{result}")
 
 
@@ -634,9 +690,10 @@ def recipe_date_handling() -> None:
     print("Recipe: Date Handling")
     print("=" * 60)
 
-    bash = create_bash_tool()
+    sandbox = create_sandbox_tool()
 
-    result = bash.run("""
+    result = sandbox.run(
+        """
         const now = new Date();
         const events = [
             {name: 'Meeting', date: new Date('2024-06-15T10:00:00')},
@@ -652,7 +709,9 @@ def recipe_date_handling() -> None:
             const dateStr = event.date.toISOString().split('T')[0];
             console.log(`  ${dateStr}: ${event.name}`);
         }
-    """)
+    """,
+        language="javascript",
+    )
     print(f"Date handling:\n{result}")
 
 
@@ -698,9 +757,9 @@ def main() -> None:
     print("""
     Quick reference:
 
-    Shell commands:     create_bash_tool().run("command")
-    With tools:         create_bash_tool(tools=[fn]).run("await fn(...)")
-    With constraints:   create_bash_tool(tools=[fn], constraints={...})
+    Shell commands:     create_sandbox_tool().run("command")
+    With tools:         create_sandbox_tool(tools=[fn]).run("await fn(...)")
+    With constraints:   create_sandbox_tool(tools=[fn], constraints={...})
     VFS persistence:    Use /workspace/ for read/write operations
     LangGraph:          SandboxTool.from_functions([...]).as_langchain_tool()
 

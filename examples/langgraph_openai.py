@@ -124,14 +124,14 @@ def example_1_basic_sandbox() -> None:
     """Example 1: Basic code generation with sandbox tool."""
     from langchain_openai import ChatOpenAI
     from langgraph.prebuilt import create_react_agent
-    from amla_sandbox import create_bash_tool
+    from amla_sandbox import create_sandbox_tool
 
     print("\n" + "=" * 60)
     print("Example 1: Code Generation (Recommended with GPT-5)")
     print("=" * 60)
 
     # Create sandbox with tools - they run in a secure WASM sandbox
-    bash = create_bash_tool(tools=[get_weather], max_calls=10)
+    sandbox = create_sandbox_tool(tools=[get_weather], max_calls=10)
 
     model = ChatOpenAI(
         model=os.environ.get("OPENAI_MODEL", "gpt-5"),
@@ -140,11 +140,11 @@ def example_1_basic_sandbox() -> None:
 
     # Use code generation - LLM writes JavaScript to call tools
     agent: Any = create_react_agent(
-        model, [bash.as_langchain_tool()], prompt=bash.get_system_prompt()
+        model, [sandbox.as_langchain_tool()], prompt=sandbox.get_system_prompt()
     )
 
     print("\nSystem prompt teaches LLM to write JavaScript:")
-    print(bash.get_system_prompt()[:300] + "...")
+    print(sandbox.get_system_prompt()[:300] + "...")
 
     print("\n" + "-" * 40)
     print("Query: Get the weather in Tokyo")
@@ -173,13 +173,13 @@ def example_2_multiple_tools() -> None:
     """Example 2: Multiple tools with code generation."""
     from langchain_openai import ChatOpenAI
     from langgraph.prebuilt import create_react_agent
-    from amla_sandbox import create_bash_tool
+    from amla_sandbox import create_sandbox_tool
 
     print("\n" + "=" * 60)
     print("Example 2: Multiple Tools with Code Generation")
     print("=" * 60)
 
-    bash = create_bash_tool(tools=[get_weather, search_products], max_calls=20)
+    sandbox = create_sandbox_tool(tools=[get_weather, search_products], max_calls=20)
 
     model = ChatOpenAI(
         model=os.environ.get("OPENAI_MODEL", "gpt-5"),
@@ -188,7 +188,7 @@ def example_2_multiple_tools() -> None:
 
     # Code generation with multiple tools available
     agent: Any = create_react_agent(
-        model, [bash.as_langchain_tool()], prompt=bash.get_system_prompt()
+        model, [sandbox.as_langchain_tool()], prompt=sandbox.get_system_prompt()
     )
 
     print("\nAvailable tools in sandbox:")
@@ -226,17 +226,18 @@ def example_3_shell_mode() -> None:
     """Example 3: Using shell mode with language='shell'."""
     from langchain_openai import ChatOpenAI
     from langgraph.prebuilt import create_react_agent
-    from amla_sandbox import create_bash_tool
+    from amla_sandbox import create_sandbox_tool
 
     print("\n" + "=" * 60)
     print("Example 3: Shell Mode Execution")
     print("=" * 60)
 
-    bash = create_bash_tool(tools=[get_weather], max_calls=10)
+    sandbox = create_sandbox_tool(tools=[get_weather], max_calls=10)
 
     # First, let's create some data with JavaScript
     print("\nCreating test data with JavaScript...")
-    result = bash.run("""
+    result = sandbox.run(
+        """
         const cities = ["Tokyo", "Paris", "London"];
         const data = [];
         for (const city of cities) {
@@ -245,17 +246,19 @@ def example_3_shell_mode() -> None:
         }
         await fs.writeFile("/workspace/weather.json", JSON.stringify(data, null, 2));
         console.log("Wrote weather data to /workspace/weather.json");
-    """)
+    """,
+        language="javascript",
+    )
     print(f"  {result}")
 
     # Now use shell mode to process it
     print("\nProcessing with shell (language='shell')...")
-    result = bash.run(
+    result = sandbox.run(
         'cat /workspace/weather.json | jq ".[].city" | tr -d \'"\'', language="shell"
     )
     print(f"  Cities: {result}")
 
-    result = bash.run(
+    result = sandbox.run(
         'cat /workspace/weather.json | jq ".[] | .temperature_celsius" | sort -n | tail -1',
         language="shell",
     )
@@ -268,7 +271,7 @@ def example_3_shell_mode() -> None:
 
     # The system prompt now includes shell instructions
     agent: Any = create_react_agent(
-        model, [bash.as_langchain_tool()], prompt=bash.get_system_prompt()
+        model, [sandbox.as_langchain_tool()], prompt=sandbox.get_system_prompt()
     )
 
     print("\n" + "-" * 40)
@@ -300,14 +303,14 @@ def example_4_with_constraints() -> None:
     """Example 4: Sandbox with constraints and rate limits."""
     from langchain_openai import ChatOpenAI
     from langgraph.prebuilt import create_react_agent
-    from amla_sandbox import create_bash_tool
+    from amla_sandbox import create_sandbox_tool
 
     print("\n" + "=" * 60)
     print("Example 4: Constrained Sandbox")
     print("=" * 60)
 
     # Create sandbox with constraints - enforced at runtime
-    bash = create_bash_tool(
+    sandbox = create_sandbox_tool(
         tools=[search_products, get_stock_price],
         constraints={
             "search_products": {"max_results": "<=5"},
@@ -330,7 +333,7 @@ def example_4_with_constraints() -> None:
 
     # Use code generation - constraints enforced in WASM sandbox
     agent: Any = create_react_agent(
-        model, [bash.as_langchain_tool()], prompt=bash.get_system_prompt()
+        model, [sandbox.as_langchain_tool()], prompt=sandbox.get_system_prompt()
     )
 
     print("\n" + "-" * 40)
@@ -360,13 +363,13 @@ def example_5_composable_prompt() -> None:
     """Example 5: Custom persona with composable system prompt."""
     from langchain_openai import ChatOpenAI
     from langgraph.prebuilt import create_react_agent
-    from amla_sandbox import create_bash_tool
+    from amla_sandbox import create_sandbox_tool
 
     print("\n" + "=" * 60)
     print("Example 5: Custom Persona with Code Generation")
     print("=" * 60)
 
-    bash = create_bash_tool(tools=[get_weather, search_products], max_calls=20)
+    sandbox = create_sandbox_tool(tools=[get_weather, search_products], max_calls=20)
 
     model = ChatOpenAI(
         model=os.environ.get("OPENAI_MODEL", "gpt-5"),
@@ -382,7 +385,7 @@ When checking weather, consider:
 - Rainy/cold -> recommend electronics and indoor items
 """
     # Compose: persona + sandbox usage instructions
-    full_prompt = persona + "\n" + bash.get_system_prompt()
+    full_prompt = persona + "\n" + sandbox.get_system_prompt()
 
     print("Composable prompt (persona + sandbox instructions):")
     print("-" * 40)
@@ -390,7 +393,7 @@ When checking weather, consider:
 
     # Use code generation with combined prompt
     agent: Any = create_react_agent(
-        model, [bash.as_langchain_tool()], prompt=full_prompt
+        model, [sandbox.as_langchain_tool()], prompt=full_prompt
     )
 
     print("\n" + "-" * 40)
@@ -433,10 +436,9 @@ def example_6_separate_tools() -> None:
     print("Example 6: Separate JS and Shell Tools")
     print("=" * 60)
 
-    # Create sandbox with explicit default language
+    # Create sandbox
     sandbox = create_sandbox_tool(
         tools=[get_weather, search_products],
-        default_language="javascript",
         max_calls=20,
     )
 
@@ -568,7 +570,7 @@ def main() -> None:
     print("""
 Key Takeaways:
 
-1. create_bash_tool() / create_sandbox_tool() creates a sandbox with your functions
+1. create_sandbox_tool() / create_sandbox_tool() creates a sandbox with your functions
 2. as_langchain_tool() returns a single "sandbox" tool with language parameter
 3. as_langchain_tools() returns separate "sandbox_js" and "sandbox_shell" tools
 4. get_system_prompt() / get_system_prompt_for_separate_tools() teaches the LLM
@@ -576,19 +578,19 @@ Key Takeaways:
 Usage patterns:
 
   # Single tool with language parameter (simpler)
-  bash = create_bash_tool(tools=[func1, func2])
-  agent = create_react_agent(model, [bash.as_langchain_tool()],
-                             prompt=bash.get_system_prompt())
+  sandbox = create_sandbox_tool(tools=[func1, func2])
+  agent = create_react_agent(model, [sandbox.as_langchain_tool()],
+                             prompt=sandbox.get_system_prompt())
 
   # Separate JS and shell tools (cleaner for LLM)
-  sandbox = create_sandbox_tool(tools=[func1], default_language="javascript")
+  sandbox = create_sandbox_tool(tools=[func1])
   tools = sandbox.as_langchain_tools()  # Returns [sandbox_js, sandbox_shell]
   agent = create_react_agent(model, tools,
                              prompt=sandbox.get_system_prompt_for_separate_tools())
 
   # Shell mode for Unix pipelines
-  bash = create_bash_tool(tools=[func1])
-  result = bash.run("cat data.json | jq '.items'", language="shell")
+  sandbox = create_sandbox_tool(tools=[func1])
+  result = sandbox.run("cat data.json | jq '.items'", language="shell")
     """)
 
 

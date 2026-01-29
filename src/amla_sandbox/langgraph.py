@@ -122,7 +122,6 @@ class SandboxTool:
     Attributes:
         sandbox: The underlying Amla Sandbox instance.
         tools: List of Python functions available in the sandbox.
-        default_language: Default language for run() when not specified.
     """
 
     sandbox: Sandbox
@@ -130,7 +129,6 @@ class SandboxTool:
     _tool_map: dict[str, Callable[..., Any]] = field(
         default_factory=lambda: {}, repr=False
     )
-    default_language: str = "javascript"
 
     # LangChain tool interface
     name: str = "sandbox"
@@ -138,12 +136,12 @@ class SandboxTool:
 
 Set language="javascript" (default) to run JavaScript with:
 - async/await for tool calls: `const data = await toolName({param: "value"});`
-- Virtual filesystem: `await fs.readFile('/tmp/data.json')`
+- Virtual filesystem: `await fs.readFile('/workspace/data.json')`
 - Full ES2020 support
 
 Set language="shell" to run shell commands with:
 - Utilities: grep, jq, tr, head, tail, sort, uniq, wc, cut, cat
-- Pipes: `cat /tmp/data.json | jq '.items[]' | head -5`
+- Pipes: `cat /workspace/data.json | jq '.items[]' | head -5`
 """
 
     @classmethod
@@ -180,10 +178,10 @@ Set language="shell" to run shell commands with:
 
         # Create handler
         def handler(method: str, params: dict[str, Any]) -> Any:
-            # Strip mcp: prefix if present (WASM runtime adds it)
+            # Strip mcp: prefix if present (WASM runtime adds it internally)
             name = method.removeprefix("mcp:")
             if name not in tool_map:
-                raise ValueError(f"Unknown tool: {method}")
+                raise ValueError(f"Unknown tool: '{name}'")
             return tool_map[name](**params)
 
         # Create sandbox
@@ -255,7 +253,7 @@ Set language="shell" to run shell commands with:
     def run(
         self,
         code: str,
-        language: str | None = None,
+        language: str,
         *,
         stdin: str | bytes | None = None,
     ) -> str:
@@ -265,16 +263,14 @@ Set language="shell" to run shell commands with:
 
         Args:
             code: Code to execute.
-            language: Either "javascript" or "shell". If not specified, uses
-                the default_language set when creating the tool.
+            language: Either "javascript" or "shell".
             stdin: Optional data to pipe via stdin. For JavaScript, this bypasses
                 the command size limit. For shell, useful for piping to `sh`.
 
         Returns:
             String output suitable for LLM consumption.
         """
-        lang = language if language is not None else self.default_language
-        if lang == "shell":
+        if language == "shell":
             result = self.shell(code, stdin=stdin)
         else:
             result = self.execute(code, stdin=stdin)
@@ -290,22 +286,15 @@ Set language="shell" to run shell commands with:
             from langchain_core.tools import StructuredTool
             from pydantic import BaseModel, Field
 
-            # Capture default_language for use in closures
-            default_lang = self.default_language
-
             class CodeInput(BaseModel):
                 """Input for code execution."""
 
                 code: str = Field(description="Code to execute")
-                language: str = Field(
-                    default=default_lang,
-                    description=f"Language: 'javascript' or 'shell' (default: {default_lang})",
-                )
+                language: str = Field(description="Language: 'javascript' or 'shell'")
 
-            def _run(code: str, language: str = default_lang) -> str:
+            def _run(code: str, language: str) -> str:
                 return self.run(code, language)
 
-            # Build a helpful description
             description = self._build_tool_description()
 
             return StructuredTool(
@@ -336,7 +325,7 @@ Set language="shell" to run shell commands with:
 
         Example::
 
-            sandbox = create_sandbox_tool(tools=[get_weather], default_language="javascript")
+            sandbox = create_sandbox_tool(tools=[get_weather])
             tools = sandbox.as_langchain_tools()
 
             # tools[0] is sandbox_js - for JavaScript execution
@@ -443,14 +432,10 @@ Set language="shell" to run shell commands with:
         - Both JavaScript and shell execution modes
         - Clear instructions on the code/language parameters
         """
-        is_js_default = self.default_language == "javascript"
-        js_marker = " (default)" if is_js_default else ""
-        shell_marker = " (default)" if not is_js_default else ""
-
         lines = [
             "Execute code in a secure sandbox. Two modes available:",
             "",
-            f"JAVASCRIPT (language='javascript'{js_marker}):",
+            "JAVASCRIPT (language='javascript'):",
             "  Call functions with async/await, output with console.log().",
         ]
 
@@ -487,7 +472,7 @@ Set language="shell" to run shell commands with:
         lines.extend(
             [
                 "",
-                f"SHELL (language='shell'{shell_marker}):",
+                "SHELL (language='shell'):",
                 "  Run shell commands with: grep, jq, tr, head, tail, sort, uniq, wc, cut, cat, echo",
                 "  Example: cat /workspace/data.json | jq '.items[]' | head -5",
             ]
@@ -566,16 +551,16 @@ Set language="shell" to run shell commands with:
 
             from langgraph.prebuilt import create_react_agent
 
-            bash = create_bash_tool(tools=[get_weather])
+            sandbox = create_sandbox_tool(tools=[get_weather])
 
             # Option 1: Use as the full system prompt (simple cases)
-            agent = create_react_agent(model, [bash.as_langchain_tool()],
-                                       prompt=bash.get_system_prompt())
+            agent = create_react_agent(model, [sandbox.as_langchain_tool()],
+                                       prompt=sandbox.get_system_prompt())
 
             # Option 2: Append to existing prompt (recommended for complex agents)
             base_prompt = "You are a helpful assistant..."
-            agent = create_react_agent(model, [bash.as_langchain_tool()],
-                                       prompt=base_prompt + "\\n\\n" + bash.get_system_prompt())
+            agent = create_react_agent(model, [sandbox.as_langchain_tool()],
+                                       prompt=base_prompt + "\\n\\n" + sandbox.get_system_prompt())
         """
         sections = []
 
@@ -584,7 +569,7 @@ Set language="shell" to run shell commands with:
 
 You have access to a `sandbox` tool that executes code securely. It accepts two parameters:
 - `code`: The code to execute (string)
-- `language`: Either "javascript" (default) or "shell"
+- `language`: Either "javascript" or "shell" (required)
 
 ### JavaScript Mode (language="javascript")
 Call functions using async/await and output results with console.log().
@@ -660,7 +645,7 @@ cat /workspace/data.json | jq '.items[]' | head -5
 
         Example::
 
-            sandbox = create_sandbox_tool(tools=[get_weather], default_language="javascript")
+            sandbox = create_sandbox_tool(tools=[get_weather])
             tools = sandbox.as_langchain_tools()
 
             agent = create_react_agent(

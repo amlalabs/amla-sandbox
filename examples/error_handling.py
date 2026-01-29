@@ -27,7 +27,7 @@ from amla_sandbox import (
     Param,
     ToolDefinition,
     CapabilityError,
-    create_bash_tool,
+    create_sandbox_tool,
 )
 
 # =============================================================================
@@ -174,41 +174,48 @@ def part3_js_errors() -> None:
     print("Part 3: JavaScript Error Handling")
     print("=" * 60)
 
-    bash = create_bash_tool()
+    sandbox = create_sandbox_tool()
 
     # Syntax errors
     print("\n1. Syntax Errors:")
     try:
-        bash.run("const x = {")  # Invalid syntax
+        sandbox.run("const x = {", language="javascript")  # Invalid syntax
     except Exception as e:
         print(f"   Caught: {type(e).__name__}")
 
     # Runtime errors
     print("\n2. Runtime Errors:")
-    result = bash.run("""
+    result = sandbox.run(
+        """
         try {
             const obj = null;
             obj.property;  // TypeError: null has no properties
         } catch (e) {
             console.log("Caught:", e.name, "-", e.message);
         }
-    """)
+    """,
+        language="javascript",
+    )
     print(f"   {result.strip()}")
 
     # Reference errors
     print("\n3. Reference Errors:")
-    result = bash.run("""
+    result = sandbox.run(
+        """
         try {
             undefinedVariable;  // ReferenceError
         } catch (e) {
             console.log("Caught:", e.name, "-", e.message);
         }
-    """)
+    """,
+        language="javascript",
+    )
     print(f"   {result.strip()}")
 
     # Custom thrown errors
     print("\n4. Custom Thrown Errors:")
-    result = bash.run("""
+    result = sandbox.run(
+        """
         function validateAge(age) {
             if (age < 0) throw new Error("Age cannot be negative");
             if (age > 150) throw new Error("Age seems unrealistic");
@@ -220,7 +227,9 @@ def part3_js_errors() -> None:
         } catch (e) {
             console.log("Validation failed:", e.message);
         }
-    """)
+    """,
+        language="javascript",
+    )
     print(f"   {result.strip()}")
 
 
@@ -267,9 +276,9 @@ def part4_tool_handler_errors() -> None:
             raise ZeroDivisionError("Cannot divide by zero")
         return {"result": a / b}
 
-    # Use create_bash_tool for proper PCA handling
-    bash = create_bash_tool(tools=[fetch_data, validate, divide])
-    sandbox = bash.sandbox
+    # Use create_sandbox_tool for proper PCA handling
+    sandbox = create_sandbox_tool(tools=[fetch_data, validate, divide])
+    sandbox = sandbox.sandbox
 
     # Network error
     print("\n1. Network Error:")
@@ -333,8 +342,9 @@ def part5_graceful_degradation() -> None:
 
     # Pattern 1: Retry with exponential backoff
     print("\n1. Retry Pattern:")
-    bash = create_bash_tool()
-    result = bash.run("""
+    sandbox = create_sandbox_tool()
+    result = sandbox.run(
+        """
         async function fetchWithRetry(fn, maxRetries = 3) {
             let lastError;
             for (let attempt = 1; attempt <= maxRetries; attempt++) {
@@ -364,12 +374,15 @@ def part5_graceful_degradation() -> None:
         } catch (e) {
             console.log("All retries failed:", e.message);
         }
-    """)
+    """,
+        language="javascript",
+    )
     print(f"   {result}")
 
     # Pattern 2: Fallback values
     print("\n2. Fallback Pattern:")
-    result = bash.run("""
+    result = sandbox.run(
+        """
         async function getDataWithFallback(primary, fallback) {
             try {
                 return await primary();
@@ -384,12 +397,15 @@ def part5_graceful_degradation() -> None:
             {source: "cached", data: [1, 2, 3]}
         );
         console.log("Got data:", JSON.stringify(data));
-    """)
+    """,
+        language="javascript",
+    )
     print(f"   {result}")
 
     # Pattern 3: Circuit breaker
     print("\n3. Circuit Breaker Pattern:")
-    result = bash.run("""
+    result = sandbox.run(
+        """
         class CircuitBreaker {
             constructor(threshold = 3, resetTimeout = 5000) {
                 this.failures = 0;
@@ -428,12 +444,15 @@ def part5_graceful_degradation() -> None:
                 console.log(`Call ${i}: ${e.message} (state: ${breaker.state})`);
             }
         }
-    """)
+    """,
+        language="javascript",
+    )
     print(f"   {result}")
 
     # Pattern 4: Result type pattern
     print("\n4. Result Type Pattern:")
-    result = bash.run("""
+    result = sandbox.run(
+        """
         // Return {ok, value/error} instead of throwing
         async function safeOperation(fn) {
             try {
@@ -456,7 +475,9 @@ def part5_graceful_degradation() -> None:
         } else {
             console.log("Handling error:", result2.error);
         }
-    """)
+    """,
+        language="javascript",
+    )
     print(f"   {result}")
 
 
@@ -475,13 +496,13 @@ def part6_preflight_checks() -> None:
         """Send a payment."""
         return {"sent": amount}
 
-    # Use create_bash_tool with constraints
-    bash = create_bash_tool(
+    # Use create_sandbox_tool with constraints
+    sandbox = create_sandbox_tool(
         tools=[payment_send],
         constraints={"payment_send": {"amount": "<=1000"}},
         max_calls={"payment_send": 3},
     )
-    sandbox = bash.sandbox
+    sandbox = sandbox.sandbox
 
     print("""
 Best practice: Use can_call() BEFORE attempting operations.
@@ -553,9 +574,9 @@ DEBUGGING TIPS:
         """Process data."""
         return {"processed": data}
 
-    # Use create_bash_tool
-    bash = create_bash_tool(tools=[process], max_calls={"process": 5})
-    sandbox = bash.sandbox
+    # Use create_sandbox_tool
+    sandbox = create_sandbox_tool(tools=[process], max_calls={"process": 5})
+    sandbox = sandbox.sandbox
 
     print("Debug inspection:")
 

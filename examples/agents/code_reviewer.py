@@ -34,7 +34,7 @@ from dotenv import load_dotenv
 from langchain_core.tools import tool
 from openai import OpenAI
 
-from amla_sandbox import create_bash_tool
+from amla_sandbox import create_sandbox_tool
 from amla_sandbox.tools import from_langchain
 
 # =============================================================================
@@ -484,12 +484,12 @@ def create_code_reviewer() -> tuple[Any, Any]:
     for d in defs:
         print(f"  • {d.name}: {d.description[:50]}...")
 
-    bash = create_bash_tool(tools=funcs, max_calls=20)
+    sandbox = create_sandbox_tool(tools=funcs, max_calls=20)
     client = OpenAI()
-    return bash, client
+    return sandbox, client
 
 
-def run_agent(bash: Any, client: Any, code: str, request: str) -> str:
+def run_agent(sandbox: Any, client: Any, code: str, request: str) -> str:
     """Run the code review agent."""
     escaped = code.replace("\\", "\\\\").replace("`", "\\`").replace("$", "\\$")
 
@@ -526,7 +526,7 @@ Write 10 lines max. Use console.log() for output. No markdown."""
     print("-" * 40)
     print("\n⚡ Executing...")
 
-    return bash.run(full_js)
+    return sandbox.run(full_js, language="javascript")
 
 
 def main():
@@ -539,11 +539,11 @@ def main():
         print("\n❌ OPENAI_API_KEY not set")
         return
 
-    bash, client = create_code_reviewer()
+    sandbox, client = create_code_reviewer()
     print(f"\n📄 Reviewing {len(SAMPLE_CODE.split(chr(10)))} lines of sample code...")
 
     result = run_agent(
-        bash,
+        sandbox,
         client,
         SAMPLE_CODE,
         "Analyze for security and bugs, show top 3 issues with fixes.",

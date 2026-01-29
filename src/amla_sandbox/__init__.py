@@ -4,29 +4,25 @@ Copyright (c) 2025 Amla Labs. MIT License (see LICENSE file).
 
 Quick start (LangGraph)::
 
-    from amla_sandbox import create_bash_tool, create_sandbox_tool
+    from amla_sandbox import create_sandbox_tool
     from langgraph.prebuilt import create_react_agent
 
     def get_weather(city: str) -> str:
         return f"Sunny in {city}"
 
-    # Explicit language (recommended for new code)
-    sandbox = create_sandbox_tool(tools=[get_weather], default_language="javascript")
-    sandbox.run("await get_weather({city: 'SF'})")  # JS by default
-
-    # Backward-compatible API (defaults to JavaScript)
-    bash = create_bash_tool(tools=[get_weather])
-    bash.run("await get_weather({city: 'SF'})")  # Also JS
+    sandbox = create_sandbox_tool(tools=[get_weather])
+    sandbox.run("await get_weather({city: 'SF'})", language="javascript")
+    sandbox.run("echo hello | tr 'a-z' 'A-Z'", language="shell")
 
     # With LangGraph
-    agent = create_react_agent(model, [bash.as_langchain_tool()])
+    agent = create_react_agent(model, [sandbox.as_langchain_tool()])
 
 The idea:
 - Agents write JS that runs in WASM (QuickJS)
 - Tool results stay in a virtual filesystem
 - Shell utilities extract only what the LLM needs
 
-What’s provided:
+What's provided:
 - VFS with async fs APIs
 - Shell applets: grep, jq, tr, head, tail, sort, uniq, wc, cut, cat
 - QuickJS ES2020 with async/await
@@ -91,13 +87,12 @@ from .codeact import (
 from .langgraph import ExecutionResult, SandboxTool
 
 # Simple sandbox tool API (AI SDK-style ergonomics)
-from .bash_tool import create_bash_tool, create_sandbox_tool
+from .bash_tool import create_sandbox_tool
 
 __all__ = [
     # === High-level API (recommended) ===
     # Simple sandbox tool (AI SDK-style ergonomics)
-    "create_sandbox_tool",  # JavaScript-first: create_sandbox_tool(tools=[...])
-    "create_bash_tool",  # Shell-first: create_bash_tool(tools=[...])
+    "create_sandbox_tool",
     # CodeAct integration (recommended for LangGraph)
     "create_amla_codeact",  # One-liner: CodeAct agent with Amla sandbox
     "create_amla_sandbox",  # Create sandbox fn for custom CodeAct setup

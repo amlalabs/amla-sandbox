@@ -34,7 +34,7 @@ from typing import Any
 from dotenv import load_dotenv
 from openai import OpenAI
 
-from amla_sandbox import create_bash_tool
+from amla_sandbox import create_sandbox_tool
 from amla_sandbox.tools import from_openai_tools
 
 # =============================================================================
@@ -446,7 +446,7 @@ def create_research_agent() -> tuple[Any, Any]:
         print(f"  • {d.name}: {d.description[:60]}...")
 
     # Create the sandbox tool with safety constraints
-    bash = create_bash_tool(
+    sandbox = create_sandbox_tool(
         tools=funcs,
         # Limit tool calls to prevent runaway agents
         max_calls={
@@ -462,10 +462,10 @@ def create_research_agent() -> tuple[Any, Any]:
     # Initialize OpenAI client
     client = OpenAI()
 
-    return bash, client
+    return sandbox, client
 
 
-def run_agent(bash: Any, client: Any, user_request: str) -> str:
+def run_agent(sandbox: Any, client: Any, user_request: str) -> str:
     """Run the research agent with a user request.
 
     The agent uses a code-generation approach:
@@ -515,7 +515,7 @@ Use console.log() for output. No markdown explanation."""
 
     # Execute in the sandbox
     print("\n⚡ Executing in sandbox...")
-    result = bash.run(code)
+    result = sandbox.run(code, language="javascript")
 
     return result
 
@@ -540,7 +540,7 @@ def main():
 
     # Create the agent
     print("\n🔧 Setting up agent...")
-    bash, client = create_research_agent()
+    sandbox, client = create_research_agent()
 
     # Example research request
     research_topic = "WebAssembly for AI agent sandboxing"
@@ -550,7 +550,7 @@ def main():
 
     # Run the agent
     result = run_agent(
-        bash,
+        sandbox,
         client,
         f"Search for '{research_topic}', save one note, generate a short report.",
     )

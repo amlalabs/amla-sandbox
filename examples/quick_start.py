@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Bash Tool: The simplest way to give agents code execution.
+"""Sandbox Tool: The simplest way to give agents code execution.
 
-This example demonstrates `create_bash_tool()` - a dead-simple API inspired by
+This example demonstrates `create_sandbox_tool()` - a dead-simple API inspired by
 Vercel's AI SDK that hides WASM/capability complexity behind sensible defaults.
 
 Progressive disclosure layers:
-  - Layer 0: Shell only (no tools)
+  - Layer 0: Shell or JavaScript only (no tools)
   - Layer 1: With Python functions as tools
   - Layer 2: With constraints and call limits
 
@@ -13,12 +13,12 @@ Requirements:
     pip install amla-sandbox
 
 Usage:
-    python 00_bash_tool.py
+    python quick_start.py
 """
 
 from typing import Any
 
-from amla_sandbox import create_bash_tool
+from amla_sandbox import create_sandbox_tool
 
 
 # =============================================================================
@@ -86,15 +86,17 @@ def demo_layer_0() -> None:
     print("Layer 0: Shell Only")
     print("=" * 60)
 
-    # Create a bash tool with no external tools
-    bash = create_bash_tool()
+    # Create a sandbox
+    sandbox = create_sandbox_tool()
 
-    # Execute shell commands with language="shell"
-    output = bash.run("echo 'Hello from sandbox!' | tr 'a-z' 'A-Z'", language="shell")
+    # Execute shell commands
+    output = sandbox.run(
+        "echo 'Hello from sandbox!' | tr 'a-z' 'A-Z'", language="shell"
+    )
     print(f"Shell output: {output}")
 
     # Use built-in shell utilities for data processing
-    output = bash.run(
+    output = sandbox.run(
         'echo \'[{"name": "Alice", "score": 95}, {"name": "Bob", "score": 87}]\' '
         "| jq 'sort_by(.score) | reverse | .[0].name'",
         language="shell",
@@ -113,23 +115,28 @@ def demo_layer_1() -> None:
     print("Layer 1: With Tools")
     print("=" * 60)
 
-    # Create bash tool with Python functions
-    bash = create_bash_tool(tools=[get_weather, search_database])
+    # Create sandbox with Python functions
+    sandbox = create_sandbox_tool(
+        tools=[get_weather, search_database],
+    )
 
-    # Tools can be called from JavaScript (create_bash_tool defaults to JS)
-    output = bash.run("""
+    # Tools can be called from JavaScript
+    output = sandbox.run(
+        """
         const weather = await get_weather({city: "San Francisco"});
         console.log("Weather:", JSON.stringify(weather));
-    """)
+    """,
+        language="javascript",
+    )
     print(f"JS tool call: {output}")
 
     # Tools can also be invoked via shell syntax!
     # This uses the `tool` command built into the sandbox shell
-    output = bash.run("tool get_weather --city Tokyo", language="shell")
+    output = sandbox.run("tool get_weather --city Tokyo", language="shell")
     print(f"Shell tool call: {output}")
 
     # Combine shell and tools
-    output = bash.run(
+    output = sandbox.run(
         'tool search_database --query "important docs" --limit 5 | jq ".[0].title"',
         language="shell",
     )
@@ -147,8 +154,8 @@ def demo_layer_2() -> None:
     print("Layer 2: With Constraints")
     print("=" * 60)
 
-    # Create bash tool with security constraints
-    bash = create_bash_tool(
+    # Create sandbox with security constraints
+    sandbox = create_sandbox_tool(
         tools=[transfer_money, get_weather],
         constraints={
             # Limit transfers to $1000 max, only USD/EUR
@@ -165,29 +172,35 @@ def demo_layer_2() -> None:
     )
 
     # Valid transfer - within constraints
-    output = bash.run("""
+    output = sandbox.run(
+        """
         const result = await transfer_money({
             amount: 500,
             to_account: "acct_12345",
             currency: "USD"
         });
         console.log("Transfer:", JSON.stringify(result));
-    """)
+    """,
+        language="javascript",
+    )
     print(f"Valid transfer: {output}")
 
     # Another valid transfer with EUR
-    output = bash.run("""
+    output = sandbox.run(
+        """
         const result = await transfer_money({
             amount: 999,
             to_account: "acct_67890",
             currency: "EUR"
         });
         console.log("EUR Transfer:", JSON.stringify(result));
-    """)
+    """,
+        language="javascript",
+    )
     print(f"EUR transfer: {output}")
 
     # Check max_calls is set
-    caps = bash.sandbox.capabilities
+    caps = sandbox.sandbox.capabilities
     transfer_cap = next((c for c in caps if "transfer_money" in c.method_pattern), None)
     if transfer_cap:
         print(f"Transfer max_calls: {transfer_cap.max_calls}")
@@ -223,8 +236,8 @@ def demo_langgraph_integration() -> None:
         _print_langgraph_example()
         return
 
-    # Create bash tool
-    bash = create_bash_tool(
+    # Create sandbox tool
+    sandbox = create_sandbox_tool(
         tools=[get_weather, search_database],
         max_calls=50,
     )
@@ -233,7 +246,7 @@ def demo_langgraph_integration() -> None:
     model = ChatAnthropic(
         model=os.environ.get("ANTHROPIC_MODEL", "claude-3-5-sonnet-20241022")  # type: ignore[call-arg]
     )
-    agent: Any = create_react_agent(model, [bash.as_langchain_tool()])
+    agent: Any = create_react_agent(model, [sandbox.as_langchain_tool()])
 
     # Run
     result = agent.invoke({"messages": [("user", "What's the weather in Tokyo?")]})
@@ -250,17 +263,17 @@ Example code:
 
     from langchain_anthropic import ChatAnthropic
     from langgraph.prebuilt import create_react_agent
-    from amla_sandbox import create_bash_tool
+    from amla_sandbox import create_sandbox_tool
 
-    # Create bash tool with your functions
-    bash = create_bash_tool(
+    # Create sandbox with your functions
+    sandbox = create_sandbox_tool(
         tools=[get_weather, search_database],
         max_calls=50,
     )
 
     # Use with LangGraph
     model = ChatAnthropic(model="claude-3-5-sonnet-20241022")
-    agent = create_react_agent(model, [bash.as_langchain_tool()])
+    agent = create_react_agent(model, [sandbox.as_langchain_tool()])
 
     result = agent.invoke({
         "messages": [("user", "What's the weather in Tokyo?")]
@@ -276,21 +289,24 @@ Example code:
 def main() -> None:
     """Run all demos."""
     print("=" * 60)
-    print("create_bash_tool() - AI SDK-Style Ergonomics")
+    print("create_sandbox_tool() - AI SDK-Style Ergonomics")
     print("=" * 60)
     print("""
 The simplest way to give agents code execution:
 
-    from amla_sandbox import create_bash_tool
+    from amla_sandbox import create_sandbox_tool
 
-    # Shell only
-    bash = create_bash_tool()
+    # Shell sandbox
+    sandbox = create_sandbox_tool()
+    sandbox.run("echo hello | tr 'a-z' 'A-Z'", language="shell")
 
-    # With tools
-    bash = create_bash_tool(tools=[my_func1, my_func2])
+    # JavaScript sandbox with tools
+    sandbox = create_sandbox_tool(
+        tools=[my_func1, my_func2],
+    )
 
     # With constraints
-    bash = create_bash_tool(
+    sandbox = create_sandbox_tool(
         tools=[transfer_money],
         constraints={"transfer_money": {"amount": "<=1000"}},
         max_calls=10,

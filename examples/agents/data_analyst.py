@@ -34,7 +34,7 @@ from typing import Any
 from dotenv import load_dotenv
 from openai import OpenAI
 
-from amla_sandbox import create_bash_tool
+from amla_sandbox import create_sandbox_tool
 from amla_sandbox.tools import from_anthropic_tools
 
 # =============================================================================
@@ -655,7 +655,7 @@ def create_data_analyst() -> tuple[Any, Any]:
         print(f"  • {d.name}: {d.description[:50]}...")
 
     # Create sandbox with constraints
-    bash = create_bash_tool(
+    sandbox = create_sandbox_tool(
         tools=funcs,
         max_calls={
             "query_database": 20,
@@ -667,10 +667,10 @@ def create_data_analyst() -> tuple[Any, Any]:
     )
 
     client = OpenAI()
-    return bash, client
+    return sandbox, client
 
 
-def run_agent(bash: Any, client: Any, analysis_request: str) -> str:
+def run_agent(sandbox: Any, client: Any, analysis_request: str) -> str:
     """Run the data analyst agent."""
 
     system_prompt = """You are a data analyst. Write CONCISE JavaScript (under 40 lines).
@@ -704,7 +704,7 @@ Use console.log() for ALL output. Keep code SHORT - focus on key insights only."
     print("-" * 40)
 
     print("\n⚡ Executing analysis...")
-    return bash.run(code)
+    return sandbox.run(code, language="javascript")
 
 
 # =============================================================================
@@ -724,7 +724,7 @@ def main():
         return
 
     print("\n🔧 Setting up agent...")
-    bash, client = create_data_analyst()
+    sandbox, client = create_data_analyst()
 
     # Show sample data info
     print("\n📊 Sample data loaded:")
@@ -738,7 +738,7 @@ def main():
     print(analysis_request)
     print("\n" + "=" * 60)
 
-    result = run_agent(bash, client, analysis_request)
+    result = run_agent(sandbox, client, analysis_request)
 
     print("\n📊 Analysis Results:")
     print("=" * 60)

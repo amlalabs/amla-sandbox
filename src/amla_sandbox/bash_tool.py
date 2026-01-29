@@ -5,17 +5,16 @@ for AI agents, hiding WASM/capability complexity behind sensible defaults.
 
 Quick Start::
 
-    from amla_sandbox import create_sandbox_tool, create_bash_tool
+    from amla_sandbox import create_sandbox_tool
 
-    # Layer 0: Just works - JavaScript sandbox
+    # Layer 0: Just works
     sandbox = create_sandbox_tool()
-
-    # Layer 0b: Shell-first (for bash-style usage)
-    bash = create_bash_tool()
-    bash.run("echo 'hello' | tr 'a-z' 'A-Z'")  # Shell is default
+    result = sandbox.run("console.log('hello')", language="javascript")
+    result = sandbox.run("echo hello | tr 'a-z' 'A-Z'", language="shell")
 
     # Layer 1: With tools
     sandbox = create_sandbox_tool(tools=[get_weather, send_email])
+    result = sandbox.run("await get_weather({city: 'SF'})", language="javascript")
 
     # Layer 2: With constraints
     sandbox = create_sandbox_tool(
@@ -48,10 +47,8 @@ DEFAULT_MAX_CALLS = 100
 def create_sandbox_tool(
     tools: Sequence[Callable[..., Any]] | None = None,
     *,
-    default_language: str,
     constraints: dict[str, dict[str, Any]] | None = None,
     max_calls: int | dict[str, int] | None = None,
-    workspace: str | None = None,
 ) -> SandboxTool:
     """Create a sandbox tool for AI agents.
 
@@ -61,9 +58,6 @@ def create_sandbox_tool(
     Args:
         tools: Python functions to expose as tools. Each function becomes
             callable from both JavaScript and shell (`tool name.func --arg val`).
-        default_language: Default language for run() when not specified.
-            Either "javascript" or "shell". Required - be explicit about
-            what kind of sandbox you want.
         constraints: Per-tool parameter constraints. Keys are tool names,
             values are dicts mapping param names to constraints like:
             - "<=1000" or ">=0" (numeric bounds)
@@ -72,28 +66,20 @@ def create_sandbox_tool(
         max_calls: Maximum calls allowed. Can be:
             - int: Same limit for all tools
             - dict: Per-tool limits {"transfer_money": 10}
-        workspace: VFS mount point for agent files (default: /data).
-            Currently unused but reserved for future VFS mounting.
 
     Returns:
         LangChain/LangGraph compatible SandboxTool.
 
     Examples::
 
-        # JavaScript sandbox
-        sandbox = create_sandbox_tool(default_language="javascript")
-        result = sandbox.run("console.log('hello')")
-
-        # Shell sandbox
-        sandbox = create_sandbox_tool(default_language="shell")
-        result = sandbox.run("echo 'hello' | tr 'a-z' 'A-Z'")
+        # Specify language at each call
+        sandbox = create_sandbox_tool()
+        result = sandbox.run("console.log('hello')", language="javascript")
+        result = sandbox.run("echo hello | tr 'a-z' 'A-Z'", language="shell")
 
         # With tools
-        sandbox = create_sandbox_tool(
-            tools=[get_weather, search_db],
-            default_language="javascript",
-        )
-        result = sandbox.run("const w = await get_weather({city: 'SF'}); console.log(w);")
+        sandbox = create_sandbox_tool(tools=[get_weather, search_db])
+        result = sandbox.run("const w = await get_weather({city: 'SF'});", language="javascript")
     """
     tools_list = list(tools) if tools else []
     tool_map = {func.__name__: func for func in tools_list}
@@ -106,10 +92,10 @@ def create_sandbox_tool(
 
     # Create handler
     def handler(method: str, params: dict[str, Any]) -> Any:
-        # Strip mcp: prefix if present (WASM runtime adds it)
+        # Strip mcp: prefix if present (WASM runtime adds it internally)
         name = method.removeprefix("mcp:")
         if name not in tool_map:
-            raise ValueError(f"Unknown tool: {method}")
+            raise ValueError(f"Unknown tool: '{name}'")
         return tool_map[name](**params)
 
     # Create sandbox
@@ -123,53 +109,6 @@ def create_sandbox_tool(
         sandbox=sandbox,
         tools=tools_list,
         _tool_map=tool_map,
-        default_language=default_language,
-    )
-
-
-def create_bash_tool(
-    tools: Sequence[Callable[..., Any]] | None = None,
-    *,
-    constraints: dict[str, dict[str, Any]] | None = None,
-    max_calls: int | dict[str, int] | None = None,
-    workspace: str | None = None,
-) -> SandboxTool:
-    """Create a sandbox tool for AI agents (backward-compatible API).
-
-    This function exists for backward compatibility. For new code, prefer
-    create_sandbox_tool() which requires explicit default_language.
-
-    Note: Despite the name, this defaults to JavaScript execution for
-    backward compatibility with existing code.
-
-    Args:
-        tools: Python functions to expose as tools.
-        constraints: Per-tool parameter constraints.
-        max_calls: Maximum calls allowed per tool.
-        workspace: VFS mount point (reserved for future use).
-
-    Returns:
-        LangChain/LangGraph compatible SandboxTool with JavaScript as default.
-
-    Examples::
-
-        # JavaScript is the default (for backward compatibility)
-        bash = create_bash_tool()
-        result = bash.run("console.log('hello')")  # JavaScript
-
-        # Shell requires explicit language
-        result = bash.run("echo 'hello' | tr 'a-z' 'A-Z'", language="shell")
-
-        # With tools
-        bash = create_bash_tool(tools=[get_weather])
-        result = bash.run("await get_weather({city: 'SF'})")  # JavaScript
-    """
-    return create_sandbox_tool(
-        tools=tools,
-        default_language="javascript",
-        constraints=constraints,
-        max_calls=max_calls,
-        workspace=workspace,
     )
 
 
