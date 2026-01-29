@@ -66,7 +66,7 @@ console.log(result);
 
 ### Storing and processing data
 ```javascript
-// Call tool and store result
+// Call tool and store result (fs is async-only)
 const data = await search({{ query: "AI agents" }});
 await fs.writeFile('/tmp/results.json', JSON.stringify(data));
 
@@ -81,7 +81,7 @@ console.log(`Found ${{count.trim()}} results`);
 const weather = await get_weather({{ city: "NYC" }});
 const events = await search_events({{ city: "NYC", date: "today" }});
 
-// Combine and filter
+// Combine and filter (fs methods are async)
 await fs.writeFile('/tmp/weather.json', JSON.stringify(weather));
 await fs.writeFile('/tmp/events.json', JSON.stringify(events));
 
