@@ -16,13 +16,13 @@ If you're running LLM-generated code through subprocess, you're running eval on 
 
 Most popular agent frameworks do exactly this:
 
-| Framework | Execution Method | Source |
-|-----------|-----------------|--------|
-| LangChain | Direct Python exec | [Security warning](https://python.langchain.com/docs/security/) |
-| AutoGPT | Shell subprocess | [Source](https://github.com/Significant-Gravitas/AutoGPT) |
-| AutoGen | Python subprocess | [Docs](https://microsoft.github.io/autogen/0.2/docs/tutorial/code-executors/) |
-| SWE-Agent | Bash subprocess | [Docs](https://github.com/SWE-agent/SWE-agent) |
-| MetaGPT | Python subprocess | [Source](https://github.com/FoundationAgents/MetaGPT) |
+| Framework | Execution Method   | Source                                                                        |
+| --------- | ------------------ | ----------------------------------------------------------------------------- |
+| LangChain | Direct Python exec | [Security warning](https://python.langchain.com/docs/security/)               |
+| AutoGPT   | Shell subprocess   | [Source](https://github.com/Significant-Gravitas/AutoGPT)                     |
+| AutoGen   | Python subprocess  | [Docs](https://microsoft.github.io/autogen/0.2/docs/tutorial/code-executors/) |
+| SWE-Agent | Bash subprocess    | [Docs](https://github.com/SWE-agent/SWE-agent)                                |
+| MetaGPT   | Python subprocess  | [Source](https://github.com/FoundationAgents/MetaGPT)                         |
 
 That's arbitrary code execution on your host. No capability restrictions. One prompt injection away from disaster.
 
@@ -227,33 +227,33 @@ sandbox.execute('await stripe.charges.create({amount: 50000, currency: "USD"})')
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                      WASM Sandbox                            │
-│  ┌───────────────────────────────────────────────────────┐  │
-│  │                 Async Scheduler                        │  │
-│  │  ┌─────────┐  ┌─────────┐  ┌─────────┐               │  │
-│  │  │ Task 1  │  │ Task 2  │  │ Task 3  │  ...          │  │
-│  │  │ waiting │  │ running │  │ ready   │               │  │
-│  │  │ on tool │  │         │  │         │               │  │
-│  │  └─────────┘  └─────────┘  └─────────┘               │  │
-│  └───────────────────────────────────────────────────────┘  │
+┌───────────────────────────────────────────────────────────┐
+│                      WASM Sandbox                         │
+│  ┌─────────────────────────────────────────────────────┐  │
+│  │                 Async Scheduler                     │  │
+│  │  ┌─────────┐  ┌─────────┐  ┌─────────┐              │  │
+│  │  │ Task 1  │  │ Task 2  │  │ Task 3  │  ...         │  │
+│  │  │ waiting │  │ running │  │ ready   │              │  │
+│  │  │ on tool │  │         │  │         │              │  │
+│  │  └─────────┘  └─────────┘  └─────────┘              │  │
+│  └─────────────────────────────────────────────────────┘  │
 │  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────────┐  │
 │  │   VFS    │ │  Shell   │ │ QuickJS  │ │ Capabilities │  │
 │  │ /tmp/    │ │ grep,cat │ │ async/   │ │  validation  │  │
 │  │ /work/   │ │ cut,sort │ │ await    │ │  per call    │  │
 │  └──────────┘ └──────────┘ └──────────┘ └──────────────┘  │
-│                          ↓ yield                           │
-└════════════════════════════════════════════════════════════┘
+│                          ↓ yield                          │
+└═══════════════════════════════════════════════════════════┘
                            │
                            ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                    Python Host                               │
-│                                                              │
-│   while sandbox.has_work():                                  │
-│       request = sandbox.step()   # tool call, sleep, I/O     │
-│       result = execute(request)  # your MCP server, API      │
-│       sandbox.resume(result)                                 │
-│                                                              │
+│                    Python Host                              │
+│                                                             │
+│   while sandbox.has_work():                                 │
+│       request = sandbox.step()   # tool call, sleep, I/O    │
+│       result = execute(request)  # your MCP server, API     │
+│       sandbox.resume(result)                                │
+│                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -270,12 +270,12 @@ The capability system supports glob patterns:
 When tools are exposed in the JavaScript sandbox, their names are transformed
 to valid JS identifiers:
 
-| Python Tool Name | JavaScript Function |
-|-----------------|---------------------|
-| `weather/current` | `weather_current()` |
+| Python Tool Name          | JavaScript Function         |
+| ------------------------- | --------------------------- |
+| `weather/current`         | `weather_current()`         |
 | `stripe.listTransactions` | `stripe_listTransactions()` |
-| `my-tool` | `my_tool()` |
-| `foo:bar` | `foo_bar()` |
+| `my-tool`                 | `my_tool()`                 |
+| `foo:bar`                 | `foo_bar()`                 |
 
 **Rule:** Dots (`.`), slashes (`/`), dashes (`-`), colons (`:`) → underscores (`_`)
 
@@ -302,11 +302,11 @@ Use `/workspace/` for read/write operations:
 ```javascript
 // First execution - save state
 const result = await expensive_computation();
-await fs.writeFile('/workspace/cache.json', JSON.stringify(result));
+await fs.writeFile("/workspace/cache.json", JSON.stringify(result));
 console.log("Computed");
 
 // Second execution - restore state
-const cached = JSON.parse(await fs.readFile('/workspace/cache.json'));
+const cached = JSON.parse(await fs.readFile("/workspace/cache.json"));
 console.log("Using cached:", cached.length, "items");
 ```
 
@@ -314,28 +314,28 @@ console.log("Using cached:", cached.length, "items");
 
 ### 1. Token Efficiency (98% reduction)
 
-| Tool Mode (10 round trips) | Code Mode (1 round trip) |
-|---------------------------|-------------------------|
-| LLM → tool → LLM → tool → ... | LLM → script → result |
-| $0.50 for a multi-step task | $0.03 for the same task |
+| Tool Mode (10 round trips)       | Code Mode (1 round trip)         |
+| -------------------------------- | -------------------------------- |
+| LLM → tool → LLM → tool → ...    | LLM → script → result            |
+| $0.50 for a multi-step task      | $0.03 for the same task          |
 | Context fills with raw responses | Only final results enter context |
 
 ### 2. Security by Default
 
-| Raw Subprocess | amla-sandbox |
-|---------------|--------------|
-| Arbitrary code execution on host | WASM sandbox, no syscalls |
-| No capability restrictions | Every tool call validated |
-| Full filesystem/network access | Only your tools, nothing else |
+| Raw Subprocess                   | amla-sandbox                     |
+| -------------------------------- | -------------------------------- |
+| Arbitrary code execution on host | WASM sandbox, no syscalls        |
+| No capability restrictions       | Every tool call validated        |
+| Full filesystem/network access   | Only your tools, nothing else    |
 | One prompt injection = game over | Agent can only do what you allow |
 
 ### 3. Zero Infrastructure
 
-| Other Sandboxes | amla-sandbox |
-|-----------------|--------------|
+| Other Sandboxes                    | amla-sandbox               |
+| ---------------------------------- | -------------------------- |
 | Docker: daemon, images, networking | `pip install amla-sandbox` |
-| Firecracker: KVM, root, Linux only | Single WASM binary |
-| E2B/Modal: API keys, per-exec cost | Works offline, no API |
+| Firecracker: KVM, root, Linux only | Single WASM binary         |
+| E2B/Modal: API keys, per-exec cost | Works offline, no API      |
 
 ## Distribution
 
