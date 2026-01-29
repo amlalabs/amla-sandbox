@@ -320,6 +320,120 @@ Set language="shell" to run shell commands with:
                 "Install with: pip install langchain-core"
             ) from e
 
+    def as_langchain_tools(self) -> list[Any]:
+        """Convert to separate LangChain tools for JavaScript and shell.
+
+        Returns a list of two tools:
+        - `sandbox_js`: Execute JavaScript code with async/await and tool access
+        - `sandbox_shell`: Execute shell commands with pipes and utilities
+
+        This is useful when you want the LLM to have clear, separate options
+        for code execution vs shell commands, rather than a single tool with
+        a language parameter.
+
+        Returns:
+            List of two StructuredTool instances.
+
+        Example::
+
+            sandbox = create_sandbox_tool(tools=[get_weather], default_language="javascript")
+            tools = sandbox.as_langchain_tools()
+
+            # tools[0] is sandbox_js - for JavaScript execution
+            # tools[1] is sandbox_shell - for shell commands
+
+            from langgraph.prebuilt import create_react_agent
+            agent = create_react_agent(model, tools)
+        """
+        try:
+            from langchain_core.tools import StructuredTool
+            from pydantic import BaseModel, Field
+
+            # JavaScript tool
+            class JSInput(BaseModel):
+                """Input for JavaScript execution."""
+
+                code: str = Field(description="JavaScript code to execute")
+
+            def _run_js(code: str) -> str:
+                return self.run(code, language="javascript")
+
+            js_description = self._build_js_tool_description()
+
+            js_tool = StructuredTool(
+                name="sandbox_js",
+                description=js_description,
+                args_schema=JSInput,
+                func=_run_js,
+            )
+
+            # Shell tool
+            class ShellInput(BaseModel):
+                """Input for shell command execution."""
+
+                command: str = Field(description="Shell command to execute")
+
+            def _run_shell(command: str) -> str:
+                return self.run(command, language="shell")
+
+            shell_description = (
+                "Execute shell commands in a secure sandbox.\n"
+                "Available: grep, jq, tr, head, tail, sort, uniq, wc, cut, cat, echo, ls\n"
+                "Pipes supported: cat /workspace/data.json | jq '.items[]' | head -5"
+            )
+
+            shell_tool = StructuredTool(
+                name="sandbox_shell",
+                description=shell_description,
+                args_schema=ShellInput,
+                func=_run_shell,
+            )
+
+            return [js_tool, shell_tool]
+
+        except ImportError as e:
+            raise ImportError(
+                "langchain_core is required for as_langchain_tools(). "
+                "Install with: pip install langchain-core"
+            ) from e
+
+    def _build_js_tool_description(self) -> str:
+        """Build description for the JavaScript-only tool."""
+        lines = [
+            "Execute JavaScript code in a secure sandbox.",
+            "Use async/await for tool calls, output with console.log().",
+        ]
+
+        if self.tools:
+            lines.append("")
+            lines.append("Available functions:")
+            for func in self.tools:
+                sig = inspect.signature(func)
+                doc = inspect.getdoc(func) or ""
+                first_line = doc.split("\n")[0] if doc else ""
+
+                params = []
+                for name, param in sig.parameters.items():
+                    param_type = "any"
+                    if param.annotation != inspect.Parameter.empty:
+                        param_type = getattr(
+                            param.annotation, "__name__", str(param.annotation)
+                        )
+                    params.append(f"{name}: {param_type}")
+
+                func_desc = f"  - {func.__name__}({{{', '.join(params)}}})"
+                if first_line:
+                    func_desc += f" - {first_line}"
+                lines.append(func_desc)
+
+            example_func = self.tools[0].__name__
+            lines.append("")
+            lines.append(
+                f"Example: const r = await {example_func}({{...}}); console.log(JSON.stringify(r));"
+            )
+
+        return "\n".join(lines)
+
     def _build_tool_description(self) -> str:
         """Build a comprehensive description for the LangChain tool.
 
@@ -526,6 +640,94 @@ cat /workspace/data.json | jq '.items[]' | head -5
         constraints = self._get_constraints_summary()
         if constraints:
             sections.append("\n### Limits\n" + constraints)
+
+        return "\n".join(sections)
+
+    def get_system_prompt_for_separate_tools(
+        self, *, include_tools: bool = True
+    ) -> str:
+        """Generate system prompt when using as_langchain_tools() (separate JS/shell tools).
+
+        Use this method when you're using `as_langchain_tools()` which returns two
+        separate tools (sandbox_js and sandbox_shell) instead of a single tool with
+        a language parameter.
+
+        Args:
+            include_tools: If True, include full tool documentation.
+
+        Returns:
+            System prompt fragment for the separate tools pattern.
+
+        Example::
+
+            sandbox = create_sandbox_tool(tools=[get_weather], default_language="javascript")
+            tools = sandbox.as_langchain_tools()
+
+            agent = create_react_agent(
+                model,
+                tools,
+                prompt=sandbox.get_system_prompt_for_separate_tools()
+            )
+        """
+        sections = []
+
+        sections.append("""## Code Execution Tools
+
+You have two code execution tools:
+
+### sandbox_js - JavaScript Execution
+Use this to run JavaScript code with async/await for tool calls.
+- Call functions: `const result = await functionName({param: "value"});`
+- Output results: `console.log(JSON.stringify(result));`
+- Virtual filesystem: `await fs.writeFile("/workspace/data.json", data);`
+
+**IMPORTANT: Batch operations in a single tool call:**
+```javascript
+const results = [];
+for (const item of items) {
+    const data = await getData({id: item});
+    results.push(data);
+}
+console.log(JSON.stringify(results));
+```
+
+### sandbox_shell - Shell Command Execution
+Use this for Unix-style data processing with pipes.
+Available utilities: grep, jq, tr, head, tail, sort, uniq, wc, cut, cat, echo, ls
+
+Example: `cat /workspace/data.json | jq '.items[]' | head -5`
+
+### When to Use Which Tool
+- **sandbox_js**: Tool calls, data fetching, complex logic, storing intermediate results
+- **sandbox_shell**: Processing files, filtering/sorting data, extracting fields""")
+
+        if include_tools and self.tools:
+            tool_docs = []
+            for func in self.tools:
+                sig = inspect.signature(func)
+                doc = inspect.getdoc(func) or ""
+                first_line = doc.split("\n")[0] if doc else "No description"
+
+                params = []
+                for name, param in sig.parameters.items():
+                    param_type = "any"
+                    if param.annotation != inspect.Parameter.empty:
+                        param_type = getattr(
+                            param.annotation, "__name__", str(param.annotation)
+                        )
+                    params.append(f"{name}: {param_type}")
+
+                tool_docs.append(
+                    f"- `{func.__name__}({{{', '.join(params)}}})` - {first_line}"
+                )
+
+            sections.append(
+                "\n\n### Available Functions (in sandbox_js)\n" + "\n".join(tool_docs)
+            )
+
+        constraints = self._get_constraints_summary()
+        if constraints:
+            sections.append("\n\n### Limits\n" + constraints)
 
         return "\n".join(sections)
 

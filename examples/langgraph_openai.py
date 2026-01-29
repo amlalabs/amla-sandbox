@@ -423,6 +423,76 @@ When checking weather, consider:
     print("Example 5 completed!")
 
 
+def example_6_separate_tools() -> None:
+    """Example 6: Separate JS and Shell tools (cleaner for LLM)."""
+    from langchain_openai import ChatOpenAI
+    from langgraph.prebuilt import create_react_agent
+    from amla_sandbox import create_sandbox_tool
+
+    print("\n" + "=" * 60)
+    print("Example 6: Separate JS and Shell Tools")
+    print("=" * 60)
+
+    # Create sandbox with explicit default language
+    sandbox = create_sandbox_tool(
+        tools=[get_weather, search_products],
+        default_language="javascript",
+        max_calls=20,
+    )
+
+    # Get separate tools instead of one combined tool
+    tools = sandbox.as_langchain_tools()
+    print(f"\nCreated {len(tools)} separate tools:")
+    for tool in tools:
+        print(f"  - {tool.name}: {tool.description[:60]}...")
+
+    model = ChatOpenAI(
+        model=os.environ.get("OPENAI_MODEL", "gpt-5"),
+        temperature=0,
+    )
+
+    # Use the system prompt designed for separate tools
+    agent: Any = create_react_agent(
+        model, tools, prompt=sandbox.get_system_prompt_for_separate_tools()
+    )
+
+    print("\nSystem prompt (for separate tools):")
+    print("-" * 40)
+    print(sandbox.get_system_prompt_for_separate_tools()[:400] + "...")
+
+    print("\n" + "-" * 40)
+    print("Query: Get weather in Tokyo and Paris, find hottest city")
+    print("-" * 40)
+
+    result = agent.invoke(
+        {
+            "messages": [
+                (
+                    "user",
+                    "Get the weather in Tokyo and Paris, then tell me which city is hotter. "
+                    "Use JavaScript to fetch the data and shell to compare.",
+                )
+            ]
+        },
+        config={"recursion_limit": 15},
+    )
+
+    for msg in result["messages"]:
+        if hasattr(msg, "tool_calls") and msg.tool_calls:
+            for tc in msg.tool_calls:
+                tool_name = tc.get("name", "")
+                args = tc.get("args", {})
+                if tool_name == "sandbox_js":
+                    print(f"\n[JS Code]: {args.get('code', '')[:200]}...")
+                elif tool_name == "sandbox_shell":
+                    print(f"\n[Shell Command]: {args.get('command', '')}")
+        if msg.__class__.__name__ == "AIMessage" and getattr(msg, "content", ""):
+            print(f"\nAssistant: {msg.content}")
+
+    print("\n" + "-" * 40)
+    print("Example 6 completed!")
+
+
 # =============================================================================
 # Main
 # =============================================================================
@@ -434,6 +504,7 @@ EXAMPLES = {
     3: ("Shell Mode", example_3_shell_mode),
     4: ("Constrained Sandbox", example_4_with_constraints),
     5: ("Custom Persona", example_5_composable_prompt),
+    6: ("Separate JS/Shell Tools", example_6_separate_tools),
 }
 
 
@@ -442,7 +513,7 @@ def main() -> None:
         description="LangGraph + OpenAI examples with amla-sandbox"
     )
     parser.add_argument(
-        "--example", "-e", type=int, help="Run a specific example (1-5)"
+        "--example", "-e", type=int, help="Run a specific example (1-6)"
     )
     parser.add_argument(
         "--list", "-l", action="store_true", help="List available examples"
@@ -497,28 +568,23 @@ def main() -> None:
     print("""
 Key Takeaways:
 
-1. create_bash_tool() creates a sandbox with your Python functions
-2. as_langchain_tool() returns a "sandbox" tool for code execution
-3. get_system_prompt() teaches the LLM how to use the sandbox
-
-The CodeAct Pattern:
-  - LLM writes JavaScript to call your functions
-  - Can chain calls, use loops, process intermediate data
-  - Batch multiple operations in one LLM turn
-  - Works great with GPT-5, Claude, and other capable models
+1. create_bash_tool() / create_sandbox_tool() creates a sandbox with your functions
+2. as_langchain_tool() returns a single "sandbox" tool with language parameter
+3. as_langchain_tools() returns separate "sandbox_js" and "sandbox_shell" tools
+4. get_system_prompt() / get_system_prompt_for_separate_tools() teaches the LLM
 
 Usage patterns:
 
-  # Basic code generation
+  # Single tool with language parameter (simpler)
   bash = create_bash_tool(tools=[func1, func2])
   agent = create_react_agent(model, [bash.as_langchain_tool()],
                              prompt=bash.get_system_prompt())
 
-  # With custom persona
-  bash = create_bash_tool(tools=[func1, func2])
-  persona = "You are a helpful assistant..."
-  agent = create_react_agent(model, [bash.as_langchain_tool()],
-                             prompt=persona + bash.get_system_prompt())
+  # Separate JS and shell tools (cleaner for LLM)
+  sandbox = create_sandbox_tool(tools=[func1], default_language="javascript")
+  tools = sandbox.as_langchain_tools()  # Returns [sandbox_js, sandbox_shell]
+  agent = create_react_agent(model, tools,
+                             prompt=sandbox.get_system_prompt_for_separate_tools())
 
   # Shell mode for Unix pipelines
   bash = create_bash_tool(tools=[func1])

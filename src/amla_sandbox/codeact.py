@@ -68,11 +68,11 @@ console.log(result);
 ```javascript
 // Call tool and store result
 const data = await search({{ query: "AI agents" }});
-fs.writeFileSync('/tmp/results.json', JSON.stringify(data));
+await fs.writeFile('/tmp/results.json', JSON.stringify(data));
 
 // Process with shell utilities
-const count = shell('cat /tmp/results.json | jq length');
-console.log(`Found ${{count}} results`);
+const {{ stdout: count }} = await shell('cat /tmp/results.json | jq length');
+console.log(`Found ${{count.trim()}} results`);
 ```
 
 ### Chaining multiple tools
@@ -82,12 +82,12 @@ const weather = await get_weather({{ city: "NYC" }});
 const events = await search_events({{ city: "NYC", date: "today" }});
 
 // Combine and filter
-fs.writeFileSync('/tmp/weather.json', JSON.stringify(weather));
-fs.writeFileSync('/tmp/events.json', JSON.stringify(events));
+await fs.writeFile('/tmp/weather.json', JSON.stringify(weather));
+await fs.writeFile('/tmp/events.json', JSON.stringify(events));
 
 // Find outdoor events if weather is good
 if (weather.condition === "sunny") {{
-    const outdoor = shell('cat /tmp/events.json | jq "[.[] | select(.outdoor)]"');
+    const {{ stdout: outdoor }} = await shell('cat /tmp/events.json | jq "[.[] | select(.outdoor)]"');
     console.log("Outdoor events:", outdoor);
 }}
 ```

@@ -1176,6 +1176,10 @@ class Runtime:
             CallLimitExceededError: If all matching capabilities are exhausted.
         """
         exhausted_caps: list[MethodCapability] = []
+        # Track constraint violations for pattern-matching capabilities
+        # This allows us to report specific constraint failures rather than
+        # the generic "no capability authorizes" message
+        constraint_violations: list[tuple[str, str]] = []  # (pattern, error_msg)
 
         for cap in self._capabilities:
             try:
@@ -1193,7 +1197,12 @@ class Runtime:
                         self._call_counts[cap_key] = remaining - 1
 
                 return cap  # Found a capability that allows this call
-            except CapabilityError:
+            except CapabilityError as e:
+                # Check if pattern matched but constraints failed
+                error_msg = str(e)
+                if "does not match pattern" not in error_msg:
+                    # Pattern matched but constraints failed - record the violation
+                    constraint_violations.append((cap.method_pattern, error_msg))
                 continue
 
         # Check if we had matching caps but they were all exhausted
@@ -1201,6 +1210,21 @@ class Runtime:
             # Report the first exhausted capability
             cap = exhausted_caps[0]
             raise CallLimitExceededError(cap.key(), cap.max_calls or 0)
+
+        # If any pattern matched but constraints failed, report the specific violations
+        if constraint_violations:
+            if len(constraint_violations) == 1:
+                pattern, error = constraint_violations[0]
+                raise CapabilityError(
+                    f"Method '{method}' matched pattern '{pattern}' but failed constraint check: {error}"
+                )
+            else:
+                violations_str = "; ".join(
+                    f"'{p}': {e}" for p, e in constraint_violations
+                )
+                raise CapabilityError(
+                    f"Method '{method}' matched patterns but failed constraint checks: {violations_str}"
+                )
 
         # No capability matched at all
         raise CapabilityError(
