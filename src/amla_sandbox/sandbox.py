@@ -211,10 +211,15 @@ class Sandbox:
 
         This is called by the runtime when agent code makes a tool call.
         Capabilities are enforced before the call is passed to the handler.
+
+        The mcp: prefix is stripped before calling the user's handler for
+        consistency - users always see the original tool name they registered.
         """
         if self.tool_handler is None:
             raise RuntimeError(f"No handler for tool call: {method}")
-        return self.tool_handler(method, params)
+        # Strip mcp: prefix (WASM runtime adds it internally)
+        clean_method = method.removeprefix("mcp:")
+        return self.tool_handler(clean_method, params)
 
     def _get_prelude(self) -> str:
         """Get the prelude script, caching it on first access.
@@ -314,10 +319,10 @@ class Sandbox:
         # If stdin provided, use it for the code (bypasses command size limits)
         if stdin is not None:
             stdin_code = stdin if isinstance(stdin, str) else stdin.decode("utf-8")
-            # Wrap in async IIFE with .catch() to report unhandled rejections
-            # Without .catch(), errors like undefined.foo silently fail
+            # Wrap in async IIFE with .then() to capture return value and .catch() for errors
             wrapped_code = (
                 f"(async () => {{\n{stdin_code}\n}})()"
+                f".then(r => {{ if (r !== undefined) console.log(typeof r === 'string' ? r : JSON.stringify(r)); }})"
                 f".catch(e => {{"
                 f"  const msg = (e.name ? e.name + ': ' : '') + (e.message || String(e));"
                 f"  console.error(e.stack ? msg + '\\n' + e.stack : msg);"
@@ -329,11 +334,13 @@ class Sandbox:
 
         # Wrap user code in async IIFE to support top-level await
         # QuickJS script mode doesn't support top-level await natively
+        # The .then() handler captures the return value and logs it (if not undefined)
         # The .catch() handler ensures unhandled rejections are reported to stderr
         # Without it, errors like `x.foo.bar` where x is undefined silently fail
         # We format the error with name: message\\nstack for readable output
         wrapped_code = (
             f"(async () => {{\n{code}\n}})()"
+            f".then(r => {{ if (r !== undefined) console.log(typeof r === 'string' ? r : JSON.stringify(r)); }})"
             f".catch(e => {{"
             f"  const msg = (e.name ? e.name + ': ' : '') + (e.message || String(e));"
             f"  console.error(e.stack ? msg + '\\n' + e.stack : msg);"
@@ -401,6 +408,7 @@ class Sandbox:
             stdin_code = stdin if isinstance(stdin, str) else stdin.decode("utf-8")
             wrapped_code = (
                 f"(async () => {{\n{stdin_code}\n}})()"
+                f".then(r => {{ if (r !== undefined) console.log(typeof r === 'string' ? r : JSON.stringify(r)); }})"
                 f".catch(e => {{"
                 f"  const msg = (e.name ? e.name + ': ' : '') + (e.message || String(e));"
                 f"  console.error(e.stack ? msg + '\\n' + e.stack : msg);"
@@ -412,9 +420,11 @@ class Sandbox:
             )
 
         # Wrap user code in async IIFE to support top-level await
+        # The .then() handler captures the return value and logs it (if not undefined)
         # The .catch() handler ensures unhandled rejections are reported to stderr
         wrapped_code = (
             f"(async () => {{\n{code}\n}})()"
+            f".then(r => {{ if (r !== undefined) console.log(typeof r === 'string' ? r : JSON.stringify(r)); }})"
             f".catch(e => {{"
             f"  const msg = (e.name ? e.name + ': ' : '') + (e.message || String(e));"
             f"  console.error(e.stack ? msg + '\\n' + e.stack : msg);"

@@ -120,6 +120,45 @@ sandbox = create_sandbox_tool(
 )
 ```
 
+## JavaScript API Notes
+
+**Tools require object syntax:**
+
+```javascript
+// WORKS - tools always take an object argument
+await get_weather({city: "SF"});
+await transfer({to: "alice", amount: 500});
+
+// FAILS - positional arguments don't work
+await get_weather("SF");  // Error: argument after ** must be a mapping
+```
+
+**Use `return` or `console.log()` for output:**
+
+```javascript
+// Return value is captured and output
+return await get_weather({city: "SF"});  // -> {"city":"SF","temp":72}
+return {a: 1, b: 2};  // -> {"a":1,"b":2}
+return "hello";  // -> hello (strings not double-quoted)
+
+// console.log also works
+console.log(JSON.stringify({a: 1}));  // -> {"a":1}
+
+// No return = no output
+const x = 42;  // -> (no output)
+```
+
+**VFS is writable only under /workspace and /tmp:**
+
+```javascript
+// WORKS - /workspace and /tmp are ReadWrite
+await fs.writeFile('/workspace/data.json', '{}');
+await fs.mkdir('/tmp/cache');
+
+// FAILS - root is read-only
+await fs.mkdir('/mydir');  // EACCES: Permission denied
+```
+
 ## LangGraph
 
 For LangGraph integration:
@@ -215,7 +254,7 @@ Pattern matching for method names:
 
 **What you get:** Isolation without infrastructure. Capability enforcement. Token efficiency.
 
-**What you don't get:** Full Linux environment. Native module support. GPU access.
+**What you don't get:** Full Linux environment. Native module support. GPU access. Infinite loop protection (a `while(true){}` will hang - the step limit only counts WASM yields, not JS instructions).
 
 If you need a real VM with persistent state and arbitrary dependencies, use [e2b](https://e2b.dev) or [Modal](https://modal.com). amla-sandbox is for the common case: agents running generated code with controlled tool access.
 

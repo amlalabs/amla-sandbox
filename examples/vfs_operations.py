@@ -34,11 +34,15 @@ def part1_basic_io() -> None:
 
     sandbox = create_sandbox_tool()
 
-    # The VFS starts empty. You can write files anywhere.
+    # The VFS has two writable directories:
+    #   /workspace/  - main working directory (ReadWrite)
+    #   /tmp/        - temporary files (ReadWrite)
+    #
+    # Root (/) is READ-ONLY. Always create files under /workspace/ or /tmp/.
     # Common conventions:
-    #   /workspace/  - working files and data
-    #   /state/      - persistent state between agent turns
-    #   /tmp/        - temporary files (same as /workspace/ in practice)
+    #   /workspace/data/   - working files and data
+    #   /workspace/state/  - persistent state between agent turns
+    #   /workspace/cache/  - cached computations
 
     # Write a text file (async - requires await)
     sandbox.run(
@@ -101,19 +105,20 @@ def part2_directories() -> None:
 
     sandbox = create_sandbox_tool()
 
-    # Create a directory structure
+    # Create a directory structure (under /workspace which is writable)
     output = sandbox.run(
         """
         // Create nested directories (async operations)
-        await fs.mkdir('/project', { recursive: true });
-        await fs.mkdir('/project/src');
-        await fs.mkdir('/project/data');
-        await fs.mkdir('/project/output');
+        // Note: Always use /workspace/ or /tmp/ - root is read-only
+        await fs.mkdir('/workspace/project', { recursive: true });
+        await fs.mkdir('/workspace/project/src');
+        await fs.mkdir('/workspace/project/data');
+        await fs.mkdir('/workspace/project/output');
 
         // Create some files
-        await fs.writeFile('/project/src/main.js', 'console.log("Hello");');
-        await fs.writeFile('/project/src/utils.js', 'export function add(a, b) { return a + b; }');
-        await fs.writeFile('/project/data/input.json', '{"items": [1, 2, 3]}');
+        await fs.writeFile('/workspace/project/src/main.js', 'console.log("Hello");');
+        await fs.writeFile('/workspace/project/src/utils.js', 'export function add(a, b) { return a + b; }');
+        await fs.writeFile('/workspace/project/data/input.json', '{"items": [1, 2, 3]}');
 
         console.log("Created project structure");
     """,
@@ -124,8 +129,8 @@ def part2_directories() -> None:
     # List directory contents
     output = sandbox.run(
         """
-        const files = await fs.readdir('/project/src');
-        console.log("Files in /project/src:");
+        const files = await fs.readdir('/workspace/project/src');
+        console.log("Files in /workspace/project/src:");
         files.forEach(f => console.log("  - " + f));
     """,
         language="javascript",
@@ -144,8 +149,8 @@ def part2_directories() -> None:
             }
         }
 
-        console.log(`/project exists: ${await exists('/project')}`);
-        console.log(`/project/src exists: ${await exists('/project/src')}`);
+        console.log(`/workspace/project exists: ${await exists('/workspace/project')}`);
+        console.log(`/workspace/project/src exists: ${await exists('/workspace/project/src')}`);
         console.log(`/nonexistent exists: ${await exists('/nonexistent')}`);
     """,
         language="javascript",
@@ -155,7 +160,7 @@ def part2_directories() -> None:
     # Get file stats
     output = sandbox.run(
         """
-        const stats = await fs.stat('/project/src/main.js');
+        const stats = await fs.stat('/workspace/project/src/main.js');
         console.log("File stats for main.js:");
         console.log(`  Size: ${stats.size} bytes`);
         console.log(`  Is file: ${stats.isFile()}`);
@@ -180,7 +185,7 @@ def part3_persistence() -> None:
     sandbox = create_sandbox_tool()
 
     # Agents often need to maintain state between turns.
-    # The /state/ directory is a convention for this.
+    # The /workspace/state/ directory is a convention for this.
 
     # Execution 1: Initialize state
     sandbox.run(
@@ -190,8 +195,8 @@ def part3_persistence() -> None:
             turnCount: 0,
             memory: []
         };
-        await fs.mkdir('/state', { recursive: true });
-        await fs.writeFile('/state/agent.json', JSON.stringify(state));
+        await fs.mkdir('/workspace/state', { recursive: true });
+        await fs.writeFile('/workspace/state/agent.json', JSON.stringify(state));
         console.log("Initialized agent state");
     """,
         language="javascript",
@@ -202,14 +207,14 @@ def part3_persistence() -> None:
     output = sandbox.run(
         """
         // Load state
-        const state = JSON.parse(await fs.readFile('/state/agent.json'));
+        const state = JSON.parse(await fs.readFile('/workspace/state/agent.json'));
 
         // Update
         state.turnCount++;
         state.memory.push({ turn: state.turnCount, action: "Searched for documents" });
 
         // Save
-        await fs.writeFile('/state/agent.json', JSON.stringify(state));
+        await fs.writeFile('/workspace/state/agent.json', JSON.stringify(state));
         console.log(`Turn ${state.turnCount}: Updated state`);
     """,
         language="javascript",
@@ -219,10 +224,10 @@ def part3_persistence() -> None:
     # Execution 3: Another update
     output = sandbox.run(
         """
-        const state = JSON.parse(await fs.readFile('/state/agent.json'));
+        const state = JSON.parse(await fs.readFile('/workspace/state/agent.json'));
         state.turnCount++;
         state.memory.push({ turn: state.turnCount, action: "Analyzed results" });
-        await fs.writeFile('/state/agent.json', JSON.stringify(state));
+        await fs.writeFile('/workspace/state/agent.json', JSON.stringify(state));
         console.log(`Turn ${state.turnCount}: Updated state`);
     """,
         language="javascript",
@@ -232,7 +237,7 @@ def part3_persistence() -> None:
     # Execution 4: Read final state
     output = sandbox.run(
         """
-        const state = JSON.parse(await fs.readFile('/state/agent.json'));
+        const state = JSON.parse(await fs.readFile('/workspace/state/agent.json'));
         console.log("Final state:");
         console.log(JSON.stringify(state, null, 2));
     """,
@@ -339,10 +344,10 @@ def part4_data_processing() -> None:
     print("\nPattern 3: Computation Caching")
     sandbox.run(
         """
-        await fs.mkdir('/cache', { recursive: true });
+        await fs.mkdir('/workspace/cache', { recursive: true });
 
         async function cachedCompute(key, computeFn) {
-            const cachePath = `/cache/${key}.json`;
+            const cachePath = `/workspace/cache/${key}.json`;
             try {
                 // Try to read from cache
                 const cached = JSON.parse(await fs.readFile(cachePath));
@@ -451,12 +456,12 @@ def part6_agent_memory() -> None:
         // Agent Memory System
         // Stores conversation history, facts, and working memory
 
-        await fs.mkdir('/memory', { recursive: true });
-        await fs.mkdir('/memory/facts', { recursive: true });
-        await fs.mkdir('/memory/working', { recursive: true });
+        await fs.mkdir('/workspace/memory', { recursive: true });
+        await fs.mkdir('/workspace/memory/facts', { recursive: true });
+        await fs.mkdir('/workspace/memory/working', { recursive: true });
 
         // Initialize conversation history
-        await fs.writeFile('/memory/history.json', JSON.stringify({
+        await fs.writeFile('/workspace/memory/history.json', JSON.stringify({
             messages: [],
             startedAt: new Date().toISOString()
         }));
@@ -472,7 +477,7 @@ def part6_agent_memory() -> None:
     # Turn 1: User asks a question
     sandbox.run(
         """
-        const history = JSON.parse(await fs.readFile('/memory/history.json'));
+        const history = JSON.parse(await fs.readFile('/workspace/memory/history.json'));
         history.messages.push({
             role: 'user',
             content: 'What is the capital of France?',
@@ -485,7 +490,7 @@ def part6_agent_memory() -> None:
         });
 
         // Store a fact we learned
-        await fs.writeFile('/memory/facts/france_capital.json', JSON.stringify({
+        await fs.writeFile('/workspace/memory/facts/france_capital.json', JSON.stringify({
             subject: 'France',
             predicate: 'capital',
             object: 'Paris',
@@ -493,7 +498,7 @@ def part6_agent_memory() -> None:
             confidence: 1.0
         }));
 
-        await fs.writeFile('/memory/history.json', JSON.stringify(history));
+        await fs.writeFile('/workspace/memory/history.json', JSON.stringify(history));
         console.log("Turn 1 complete");
     """,
         language="javascript",
@@ -503,7 +508,7 @@ def part6_agent_memory() -> None:
     # Turn 2: Follow-up question
     sandbox.run(
         """
-        const history = JSON.parse(await fs.readFile('/memory/history.json'));
+        const history = JSON.parse(await fs.readFile('/workspace/memory/history.json'));
         history.messages.push({
             role: 'user',
             content: 'What about Germany?',
@@ -515,7 +520,7 @@ def part6_agent_memory() -> None:
             timestamp: new Date().toISOString()
         });
 
-        await fs.writeFile('/memory/facts/germany_capital.json', JSON.stringify({
+        await fs.writeFile('/workspace/memory/facts/germany_capital.json', JSON.stringify({
             subject: 'Germany',
             predicate: 'capital',
             object: 'Berlin',
@@ -523,7 +528,7 @@ def part6_agent_memory() -> None:
             confidence: 1.0
         }));
 
-        await fs.writeFile('/memory/history.json', JSON.stringify(history));
+        await fs.writeFile('/workspace/memory/history.json', JSON.stringify(history));
         console.log("Turn 2 complete");
     """,
         language="javascript",
@@ -534,15 +539,15 @@ def part6_agent_memory() -> None:
     output = sandbox.run(
         """
         // Query conversation history
-        const history = JSON.parse(await fs.readFile('/memory/history.json'));
+        const history = JSON.parse(await fs.readFile('/workspace/memory/history.json'));
         console.log(`Conversation has ${history.messages.length} messages`);
         console.log(`Started at: ${history.startedAt}`);
 
         // Query stored facts
-        const factFiles = await fs.readdir('/memory/facts');
+        const factFiles = await fs.readdir('/workspace/memory/facts');
         console.log(`\\nStored facts (${factFiles.length}):`);
         for (const file of factFiles) {
-            const fact = JSON.parse(await fs.readFile(`/memory/facts/${file}`));
+            const fact = JSON.parse(await fs.readFile(`/workspace/memory/facts/${file}`));
             console.log(`  - ${fact.subject}'s ${fact.predicate} is ${fact.object}`);
         }
 
@@ -585,8 +590,9 @@ Key takeaways:
 1. The VFS is an in-memory filesystem inside the sandbox
 2. All fs operations are ASYNC - use `await fs.readFile()` and `await fs.writeFile()`
 3. JSON is the natural format for structured data
-4. State persists between run() calls on the SAME bash instance
-5. Common conventions: /workspace/, /state/, /cache/, /memory/
+4. State persists between run() calls on the SAME sandbox instance
+5. Root (/) is READ-ONLY - use /workspace/ or /tmp/ for all writes
+6. Common conventions: /workspace/data/, /workspace/state/, /workspace/cache/
 
 VFS is the foundation for:
 - Agent state management
