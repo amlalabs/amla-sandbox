@@ -58,7 +58,9 @@ amla-sandbox: Secure code execution
 Together, they provide:
   1. ORCHESTRATION - LangGraph manages the agent loop
   2. SECURITY - amla-sandbox enforces capability boundaries
-  3. EFFICIENCY - Code mode reduces token usage by 98%
+  3. EFFICIENCY - Code mode reduces token usage by 98%*
+
+*Source: https://www.anthropic.com/engineering/code-execution-with-mcp
 
 Integration patterns:
   a) Simple: create_sandbox_tool() + as_langchain_tool()
