@@ -16,7 +16,8 @@ or any research task that requires gathering and synthesizing information
 from multiple sources.
 
 Requirements:
-    pip install amla-sandbox openai python-dotenv
+    uv pip install "git+https://github.com/amlalabs/amla-sandbox#subdirectory=src/python/packages/amla-sandbox"
+    uv pip install openai python-dotenv
 
 Usage:
     export AMLA_WASM_PATH=/path/to/amla_sandbox.wasm

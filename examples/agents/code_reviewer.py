@@ -15,7 +15,8 @@ Real-world use case: Automated code review for CI/CD pipelines, helping
 developers catch issues before code review, and generating documentation.
 
 Requirements:
-    pip install amla-sandbox openai python-dotenv langchain-core
+    uv pip install "git+https://github.com/amlalabs/amla-sandbox#subdirectory=src/python/packages/amla-sandbox"
+    uv pip install openai python-dotenv langchain-core
 
 Usage:
     export AMLA_WASM_PATH=/path/to/amla_sandbox.wasm

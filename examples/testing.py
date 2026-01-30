@@ -10,7 +10,7 @@ This tutorial covers:
   6. Test organization best practices
 
 Prerequisites:
-    pip install amla-sandbox pytest
+    uv pip install "git+https://github.com/amlalabs/amla-sandbox#subdirectory=src/python/packages/amla-sandbox[dev]"
 
 Run:
     python testing_sandbox_code.py

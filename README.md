@@ -1,19 +1,19 @@
 # amla-sandbox
 
-Every popular agent framework runs LLM-generated code with `subprocess` or `exec()`. That's arbitrary code execution on your host with no capability restrictions. One prompt injection and you're done.
+Every popular agent framework runs LLM-generated code via `subprocess` or `exec()`. That's arbitrary code execution on your host. One prompt injection and you're done.
 
-| Framework | Execution Method                 | Source                                                                                                                                               |
-| --------- | -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| LangChain | `exec(command, globals, locals)` | [CVE-2023-39659](https://security.snyk.io/vuln/SNYK-PYTHON-LANGCHAIN-5843727), [GitHub #5294](https://github.com/langchain-ai/langchain/issues/5294) |
-| AutoGen   | `subprocess.run()`               | [Code Executors docs](https://microsoft.github.io/autogen/0.2/docs/tutorial/code-executors/)                                                         |
-| SWE-Agent | `subprocess.run(["bash", ...])`  | [SWE-ReX](https://github.com/SWE-agent/SWE-ReX)                                                                                                      |
-| OpenHands | Docker container                 | [Runtime docs](https://docs.openhands.dev/modules/usage/architecture/runtime)                                                                        |
-| Aider     | Shell subprocess                 | [commands.py](https://github.com/Aider-AI/aider/blob/main/aider/commands.py)                                                                         |
+| Framework | Execution Method                 | Source                                                                                                                                     |
+| --------- | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| LangChain | `exec(command, globals, locals)` | [CVE-2025-68664](https://github.com/advisories/GHSA-c67j-w6g6-q2cm), [GitHub #5294](https://github.com/langchain-ai/langchain/issues/5294) |
+| AutoGen   | `subprocess.run()`               | [Code Executors docs](https://microsoft.github.io/autogen/0.2/docs/tutorial/code-executors/)                                               |
+| SWE-Agent | `subprocess.run(["bash", ...])`  | [SWE-ReX](https://github.com/SWE-agent/SWE-ReX)                                                                                            |
 
-amla-sandbox is a WASM sandbox with capability enforcement. Agents can only call tools you explicitly provide, with constraints you define. Sandboxed virtual filesystem. No network. No shell escape.
+Some frameworks offer Docker isolation (OpenHands, AutoGen), but that requires running a Docker daemon and managing container infrastructure.
+
+**amla-sandbox** is a WASM sandbox with capability enforcement. Agents can only call tools you explicitly provide, with constraints you define. Sandboxed virtual filesystem. No network. No shell escape.
 
 ```bash
-pip install amla-sandbox
+uv pip install "git+https://github.com/amlalabs/amla-sandbox#subdirectory=src/python/packages/amla-sandbox"
 ```
 
 No Docker. No VM. One binary, works everywhere.

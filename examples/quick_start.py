@@ -10,7 +10,7 @@ Progressive disclosure layers:
   - Layer 2: With constraints and call limits
 
 Requirements:
-    pip install amla-sandbox
+    uv pip install "git+https://github.com/amlalabs/amla-sandbox#subdirectory=src/python/packages/amla-sandbox"
 
 Usage:
     python quick_start.py
@@ -225,7 +225,7 @@ def demo_langgraph_integration() -> None:
         from langgraph.prebuilt import create_react_agent
     except ImportError:
         print(
-            "LangGraph not installed. Install with: pip install amla-sandbox[langgraph]"
+            "LangGraph not installed. Install with: uv pip install langgraph langchain-anthropic"
         )
         _print_langgraph_example()
         return

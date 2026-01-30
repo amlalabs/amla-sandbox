@@ -10,7 +10,7 @@ This tutorial covers:
   6. Debugging and troubleshooting
 
 Prerequisites:
-    pip install amla-sandbox
+    uv pip install "git+https://github.com/amlalabs/amla-sandbox#subdirectory=src/python/packages/amla-sandbox"
 
 Run:
     python error_handling.py

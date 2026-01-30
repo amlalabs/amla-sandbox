@@ -10,8 +10,8 @@ Supported frameworks:
 - Anthropic (tool use format)
 
 Requirements:
-    pip install amla-sandbox
-    pip install langchain  # Optional, for LangChain examples
+    uv pip install "git+https://github.com/amlalabs/amla-sandbox#subdirectory=src/python/packages/amla-sandbox"
+    uv pip install langchain  # Optional, for LangChain examples
 
 Usage:
     python 11_framework_ingestion.py
