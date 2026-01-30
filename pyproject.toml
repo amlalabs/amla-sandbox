@@ -1,11 +1,11 @@
 [project]
 name = "amla-sandbox"
-version = "0.1.6"
+version = "0.1.7"
 description = "Capability-based sandboxed runtime for AI agents"
 readme = "README.md"
 license = {file = "LICENSE"}
 authors = [
-    {name = "Amla Labs", email = "hello@amla.dev"},
+    {name = "Amla Labs", email = "souvik@amlalabs.com"},
 ]
 keywords = ["sandbox", "wasm", "ai", "agents", "security", "capabilities"]
 classifiers = [

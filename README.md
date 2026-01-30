@@ -260,7 +260,7 @@ If you need a real VM with persistent state and arbitrary dependencies, use [e2b
 
 ## License
 
-Python code is MIT. The WASM binary is proprietary—you can use it with this package but can't extract or redistribute it separately.
+Python code is MIT. The WASM binary is currently proprietary—you can use it freely with this package, but you can't extract or redistribute it separately. We're working on open sourcing the WASM runtime.
 
 ---
 
