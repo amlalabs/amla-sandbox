@@ -1,6 +1,6 @@
 [project]
 name = "amla-sandbox"
-version = "0.1.5"
+version = "0.1.6"
 description = "Capability-based sandboxed runtime for AI agents"
 readme = "README.md"
 license = {file = "LICENSE"}
