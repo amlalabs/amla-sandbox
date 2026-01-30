@@ -15,7 +15,7 @@ Real-world use case: Business intelligence, data exploration, automated
 reporting, and ad-hoc analysis without writing SQL or Python.
 
 Requirements:
-    uv pip install "git+https://github.com/amlalabs/amla-sandbox#subdirectory=src/python/packages/amla-sandbox"
+    uv pip install "git+https://github.com/amlalabs/amla-sandbox"
     uv pip install openai python-dotenv
 
 Usage:

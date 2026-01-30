@@ -5,7 +5,7 @@ Curated examples demonstrating amla-sandbox capabilities. Start with `quick_star
 ## Getting Started
 
 ```bash
-uv pip install "git+https://github.com/amlalabs/amla-sandbox#subdirectory=src/python/packages/amla-sandbox"
+uv pip install "git+https://github.com/amlalabs/amla-sandbox"
 
 # Run any example
 python examples/quick_start.py

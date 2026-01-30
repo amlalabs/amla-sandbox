@@ -9,7 +9,7 @@ This tutorial covers:
   5. Tool call patterns and best practices
 
 Prerequisites:
-    uv pip install "git+https://github.com/amlalabs/amla-sandbox#subdirectory=src/python/packages/amla-sandbox"
+    uv pip install "git+https://github.com/amlalabs/amla-sandbox"
 
 Run:
     python async_tool_handlers.py

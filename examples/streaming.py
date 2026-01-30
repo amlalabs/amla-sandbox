@@ -9,7 +9,7 @@ This tutorial covers:
   5. Production monitoring best practices
 
 Prerequisites:
-    uv pip install "git+https://github.com/amlalabs/amla-sandbox#subdirectory=src/python/packages/amla-sandbox"
+    uv pip install "git+https://github.com/amlalabs/amla-sandbox"
 
 Run:
     python streaming_and_monitoring.py

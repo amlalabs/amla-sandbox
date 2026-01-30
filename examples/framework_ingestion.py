@@ -10,7 +10,7 @@ Supported frameworks:
 - Anthropic (tool use format)
 
 Requirements:
-    uv pip install "git+https://github.com/amlalabs/amla-sandbox#subdirectory=src/python/packages/amla-sandbox"
+    uv pip install "git+https://github.com/amlalabs/amla-sandbox"
     uv pip install langchain  # Optional, for LangChain examples
 
 Usage:

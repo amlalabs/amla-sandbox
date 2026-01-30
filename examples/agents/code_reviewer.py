@@ -15,7 +15,7 @@ Real-world use case: Automated code review for CI/CD pipelines, helping
 developers catch issues before code review, and generating documentation.
 
 Requirements:
-    uv pip install "git+https://github.com/amlalabs/amla-sandbox#subdirectory=src/python/packages/amla-sandbox"
+    uv pip install "git+https://github.com/amlalabs/amla-sandbox"
     uv pip install openai python-dotenv langchain-core
 
 Usage:

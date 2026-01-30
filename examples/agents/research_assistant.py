@@ -16,7 +16,7 @@ or any research task that requires gathering and synthesizing information
 from multiple sources.
 
 Requirements:
-    uv pip install "git+https://github.com/amlalabs/amla-sandbox#subdirectory=src/python/packages/amla-sandbox"
+    uv pip install "git+https://github.com/amlalabs/amla-sandbox"
     uv pip install openai python-dotenv
 
 Usage:

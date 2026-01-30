@@ -5,7 +5,7 @@ This cookbook contains copy-paste recipes for common tasks.
 Each recipe is self-contained and can be run independently.
 
 Prerequisites:
-    uv pip install "git+https://github.com/amlalabs/amla-sandbox#subdirectory=src/python/packages/amla-sandbox"
+    uv pip install "git+https://github.com/amlalabs/amla-sandbox"
 
 Run:
     python recipes.py

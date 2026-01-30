@@ -13,7 +13,7 @@ Some frameworks offer Docker isolation (OpenHands, AutoGen), but that requires r
 **amla-sandbox** is a WASM sandbox with capability enforcement. Agents can only call tools you explicitly provide, with constraints you define. Sandboxed virtual filesystem. No network. No shell escape.
 
 ```bash
-uv pip install "git+https://github.com/amlalabs/amla-sandbox#subdirectory=src/python/packages/amla-sandbox"
+uv pip install "git+https://github.com/amlalabs/amla-sandbox"
 ```
 
 No Docker. No VM. One binary, works everywhere.
