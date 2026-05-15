@@ -3,7 +3,7 @@ name = "amla-sandbox"
 # Placeholder. The real release version is injected at extract time by
 # scripts/extract-mirror.py (which reads it from the release-vX.Y.Z tag).
 # See mirrors/README.md for the release flow.
-version = "0.2.5"
+version = "0.2.6"
 description = "Capability-based sandboxed runtime for AI agents"
 readme = "README.md"
 license = {file = "LICENSE"}
