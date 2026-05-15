@@ -10,7 +10,7 @@ Supported frameworks:
 - Anthropic (tool use format)
 
 Requirements:
-    uv pip install "git+https://github.com/amlalabs/amla-sandbox"
+    pip install amla-sandbox
     uv pip install langchain  # Optional, for LangChain examples
 
 Usage:
@@ -25,7 +25,6 @@ from amla_sandbox.tools import (
     from_langchain,
     from_openai_tools,
 )
-
 
 # =============================================================================
 # Example 1: Ingest OpenAI Function Calling Format

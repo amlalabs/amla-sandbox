@@ -22,6 +22,23 @@ SOFTWARE.
 
 ---
 
-Note: This license applies to the Python source code in this package.
-The bundled WASM runtime binary (src/amla_sandbox/_wasm/amla_sandbox.wasm)
-is proprietary software owned by Amla Labs and is licensed separately.
+Dual-license notice
+
+This wheel ships two separately licensed components. The MIT license above
+applies ONLY to the Python source code in this package (everything under
+`src/amla_sandbox/` except the `_wasm/` directory).
+
+The bundled WebAssembly runtime binary
+(`src/amla_sandbox/_wasm/amla_sandbox.wasm`) is NOT covered by the MIT
+license above. It is built from the Rust source of the `amla-sandbox` crate
+and is licensed under:
+
+    AGPL-3.0-or-later OR BUSL-1.1
+
+(licensee's choice between the two). The corresponding Rust source, build
+recipe, and full license texts are published at:
+
+    https://github.com/amlalabs/amla-sandbox-core
+
+If you redistribute this wheel, both license obligations apply: MIT for the
+Python wrapper and AGPL-3.0-or-later (or BUSL-1.1) for the WASM artifact.

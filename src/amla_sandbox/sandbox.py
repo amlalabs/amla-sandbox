@@ -58,14 +58,15 @@ Architecture::
 
 from __future__ import annotations
 
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from types import TracebackType
-from typing import Any, Callable, Iterator
+from typing import Any
 
 from .audit import AuditCollector, AuditConfig, AuditEntry
-from .capabilities import MethodCapability
+from .capabilities import ToolCallCap
 from .runtime import Runtime, RuntimeConfig
 from .runtime.wasm import ToolHandler
 from .tools import ToolDefinition
@@ -87,7 +88,7 @@ class Sandbox:
 
     Example::
 
-        from amla_sandbox import Sandbox, ToolDefinition, MethodCapability
+        from amla_sandbox import Sandbox, ToolDefinition, ToolCallCap
 
         # Create sandbox with tools and capabilities
         sandbox = Sandbox(
@@ -98,7 +99,7 @@ class Sandbox:
                     parameters={"type": "object", "properties": {"limit": {"type": "integer"}}}
                 ),
             ],
-            capabilities=[MethodCapability(method_pattern="**")],
+            capabilities=[ToolCallCap(method_pattern="**")],
             tool_handler=lambda method, params: {"transactions": [...]},
         )
 
@@ -140,9 +141,7 @@ class Sandbox:
     tools: list[ToolDefinition] = field(default_factory=lambda: list[ToolDefinition]())
     """Available tools."""
 
-    capabilities: list[MethodCapability] = field(
-        default_factory=lambda: list[MethodCapability]()
-    )
+    capabilities: list[ToolCallCap] = field(default_factory=lambda: list[ToolCallCap]())
     """Capabilities for enforcement."""
 
     trusted_authorities: list[str] = field(default_factory=lambda: list[str]())
@@ -182,7 +181,7 @@ class Sandbox:
                 object.__setattr__(
                     self,
                     "capabilities",
-                    [MethodCapability(method_pattern="**")],
+                    [ToolCallCap(method_pattern="**")],
                 )
 
         # Convert tools to JSON for WASM runtime
@@ -504,7 +503,7 @@ class Sandbox:
             return ""
         return self._runtime.last_stderr
 
-    def get_capabilities(self) -> list[MethodCapability]:
+    def get_capabilities(self) -> list[ToolCallCap]:
         """Get all capabilities for this sandbox.
 
         Returns the capabilities that were provided at initialization,
@@ -519,7 +518,7 @@ class Sandbox:
         """Get remaining calls for a capability.
 
         Args:
-            capability_key: The capability key (e.g., "cap:method:stripe/**").
+            capability_key: The capability key (e.g., "cap:tool-call:stripe/**").
 
         Returns:
             Remaining calls, or None if capability has no limit or doesn't exist.
@@ -527,11 +526,11 @@ class Sandbox:
         Example::
 
             sandbox = Sandbox(
-                capabilities=[MethodCapability(method_pattern="api/*", max_calls=10)]
+                capabilities=[ToolCallCap(method_pattern="api/*", max_calls=10)]
             )
-            print(sandbox.get_remaining_calls("cap:method:api/*"))  # 10
+            print(sandbox.get_remaining_calls("cap:tool-call:api/*"))  # 10
             sandbox.execute("await api_call({})")
-            print(sandbox.get_remaining_calls("cap:method:api/*"))  # 9
+            print(sandbox.get_remaining_calls("cap:tool-call:api/*"))  # 9
         """
         if self._runtime is None:
             return None
@@ -547,11 +546,11 @@ class Sandbox:
         Example::
 
             sandbox = Sandbox(capabilities=[
-                MethodCapability(method_pattern="read/*", max_calls=100),
-                MethodCapability(method_pattern="write/*", max_calls=10),
+                ToolCallCap(method_pattern="read/*", max_calls=100),
+                ToolCallCap(method_pattern="write/*", max_calls=10),
             ])
             print(sandbox.get_call_counts())
-            # {'cap:method:read/*': 100, 'cap:method:write/*': 10}
+            # {'cap:tool-call:read/*': 100, 'cap:tool-call:write/*': 10}
         """
         if self._runtime is None:
             return {}

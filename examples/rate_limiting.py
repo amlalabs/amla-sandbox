@@ -14,8 +14,8 @@ Use cases:
 """
 
 from amla_sandbox import (
-    MethodCapability,
     Sandbox,
+    ToolCallCap,
     ToolDefinition,
 )
 
@@ -57,7 +57,7 @@ print("=" * 60)
 print()
 
 # Create capability with 3-call budget
-limited_cap = MethodCapability(
+limited_cap = ToolCallCap(
     method_pattern="**",  # Match all methods
     max_calls=3,
 )
@@ -115,17 +115,17 @@ print()
 call_log.clear()
 
 # Multiple capabilities with different budgets
-read_cap = MethodCapability(
+read_cap = ToolCallCap(
     method_pattern="data/read",
     max_calls=100,
 )
 
-write_cap = MethodCapability(
+write_cap = ToolCallCap(
     method_pattern="data/write",
     max_calls=10,
 )
 
-unlimited_cap = MethodCapability(
+unlimited_cap = ToolCallCap(
     method_pattern="logs/**",
     # No max_calls = unlimited
 )
@@ -167,7 +167,7 @@ print()
 call_log.clear()
 
 # Capability that runs out quickly
-tiny_cap = MethodCapability(
+tiny_cap = ToolCallCap(
     method_pattern="**",
     max_calls=2,
 )
@@ -235,12 +235,12 @@ print()
 call_log.clear()
 
 # Scenario: Specific capability runs out, falls back to broader one
-specific_cap = MethodCapability(
+specific_cap = ToolCallCap(
     method_pattern="mcp:counter.increment",  # Exact match
     max_calls=2,
 )
 
-broad_cap = MethodCapability(
+broad_cap = ToolCallCap(
     method_pattern="**",  # Matches everything
     max_calls=100,
 )
@@ -292,7 +292,7 @@ print()
 
 call_log.clear()
 
-cap = MethodCapability(method_pattern="**", max_calls=5)
+cap = ToolCallCap(method_pattern="**", max_calls=5)
 sandbox = Sandbox(
     tools=[counter_tool],
     capabilities=[cap],

@@ -32,14 +32,15 @@ from __future__ import annotations
 __all__ = [
     "JS_CODEACT_PROMPT",
     "SandboxFn",
-    "format_tool_descriptions_js",
-    "create_amla_sandbox",
     "create_amla_codeact",
+    "create_amla_sandbox",
+    "format_tool_descriptions_js",
 ]
 
-from typing import Any, Callable, Sequence
+from collections.abc import Callable, Sequence
+from typing import Any
 
-from .capabilities import MethodCapability
+from .capabilities import ToolCallCap
 from .tools import format_tool_descriptions_js
 
 # Avoid circular import - SandboxTool is imported at function level
@@ -104,7 +105,7 @@ SandboxFn = Callable[[str, dict[str, Any]], tuple[str, dict[str, Any]]]
 def create_amla_sandbox(
     tools: Sequence[Callable[..., Any]],
     *,
-    capabilities: Sequence[MethodCapability] | None = None,
+    capabilities: Sequence[ToolCallCap] | None = None,
 ) -> SandboxFn:
     """Create an Amla sandbox function for LangGraph CodeAct.
 
@@ -176,7 +177,7 @@ def create_amla_codeact(
     model: str | Any,
     tools: Sequence[Callable[..., Any]],
     *,
-    capabilities: Sequence[MethodCapability] | None = None,
+    capabilities: Sequence[ToolCallCap] | None = None,
     prompt: str | None = None,
 ) -> Any:
     """Create a LangGraph CodeAct agent with Amla sandbox.

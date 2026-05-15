@@ -5,7 +5,7 @@ This cookbook contains copy-paste recipes for common tasks.
 Each recipe is self-contained and can be run independently.
 
 Prerequisites:
-    uv pip install "git+https://github.com/amlalabs/amla-sandbox"
+    pip install amla-sandbox
 
 Run:
     python recipes.py
@@ -20,12 +20,11 @@ import json
 from typing import Any
 
 from amla_sandbox import (
-    MethodCapability,
     Sandbox,
     SandboxTool,
+    ToolCallCap,
     create_sandbox_tool,
 )
-
 
 # =============================================================================
 # RECIPE: Quick Shell Commands
@@ -452,7 +451,7 @@ def recipe_streaming() -> None:
 
     with Sandbox(
         tools=[],
-        capabilities=[MethodCapability(method_pattern="**")],
+        capabilities=[ToolCallCap(method_pattern="**")],
     ) as sandbox:
         # All console.log output is captured in the result
         result = sandbox.execute("""
@@ -651,7 +650,7 @@ def recipe_reuse_sandbox() -> None:
     # Create sandbox once
     with Sandbox(
         tools=[],
-        capabilities=[MethodCapability(method_pattern="**")],
+        capabilities=[ToolCallCap(method_pattern="**")],
     ) as sandbox:
         # First operation: setup
         sandbox.execute("""

@@ -26,7 +26,8 @@ Example::
 
 from __future__ import annotations
 
-from typing import Any, Callable, Sequence, TypeVar, cast
+from collections.abc import Callable, Sequence
+from typing import Any, TypeVar, cast
 
 from .definition import ToolDefinition
 
@@ -244,10 +245,7 @@ def _convert_openai_tool(
     # 1. {"type": "function", "function": {...}}
     # 2. {"name": "...", "description": "...", "parameters": {...}}
 
-    if "function" in tool:
-        func_def = tool["function"]
-    else:
-        func_def = tool
+    func_def = tool.get("function", tool)
 
     name = func_def["name"]
     description = func_def.get("description", f"Call {name}")

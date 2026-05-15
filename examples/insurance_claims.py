@@ -24,12 +24,11 @@ from typing import Any
 
 from amla_sandbox import (
     ConstraintSet,
-    MethodCapability,
     Param,
     Sandbox,
+    ToolCallCap,
     ToolDefinition,
 )
-
 
 # =============================================================================
 # Domain Types
@@ -163,16 +162,15 @@ def create_tool_handler(backend: MockInsuranceBackend) -> ToolHandler:
 
         if tool_name == "policy.lookup":
             return backend.policy_lookup(params["customer_id"])
-        elif tool_name == "claims.create":
+        if tool_name == "claims.create":
             return backend.claims_create(
                 params["customer_id"], params["description"], params["amount"]
             )
-        elif tool_name == "claims.assess":
+        if tool_name == "claims.assess":
             return backend.claims_assess(params["claim_id"], params["assessed_amount"])
-        elif tool_name == "payout.execute":
+        if tool_name == "payout.execute":
             return backend.payout_execute(params["claim_id"], params["amount"])
-        else:
-            raise ValueError(f"Unknown tool: {method}")
+        raise ValueError(f"Unknown tool: {method}")
 
     return handler
 
@@ -239,7 +237,7 @@ TOOLS = [
 # =============================================================================
 
 
-def make_claims_agent_caps() -> list[MethodCapability]:
+def make_claims_agent_caps() -> list[ToolCallCap]:
     """Capabilities for the Claims Agent.
 
     Can:
@@ -250,12 +248,12 @@ def make_claims_agent_caps() -> list[MethodCapability]:
     """
     return [
         # Read-only policy access
-        MethodCapability(
+        ToolCallCap(
             method_pattern="mcp:policy.lookup",
             max_calls=100,  # Budget for lookups
         ),
         # Create claims with amount constraint
-        MethodCapability(
+        ToolCallCap(
             method_pattern="mcp:claims.create",
             constraints=ConstraintSet(
                 [
@@ -266,7 +264,7 @@ def make_claims_agent_caps() -> list[MethodCapability]:
             max_calls=50,  # Budget for claim creation
         ),
         # Assess claims
-        MethodCapability(
+        ToolCallCap(
             method_pattern="mcp:claims.assess",
             constraints=ConstraintSet(
                 [
@@ -281,14 +279,14 @@ def make_claims_agent_caps() -> list[MethodCapability]:
     ]
 
 
-def make_payout_agent_caps(max_payout: int) -> list[MethodCapability]:
+def make_payout_agent_caps(max_payout: int) -> list[ToolCallCap]:
     """Capabilities for the Payout Agent.
 
     Can ONLY:
     - Execute payouts up to the attenuated max
     """
     return [
-        MethodCapability(
+        ToolCallCap(
             method_pattern="mcp:payout.execute",
             constraints=ConstraintSet(
                 [
@@ -301,11 +299,11 @@ def make_payout_agent_caps(max_payout: int) -> list[MethodCapability]:
     ]
 
 
-def make_attacker_caps() -> list[MethodCapability]:
+def make_attacker_caps() -> list[ToolCallCap]:
     """Eve's forged capabilities (won't work!)"""
     return [
         # Eve tries to give herself payout rights
-        MethodCapability(
+        ToolCallCap(
             method_pattern="mcp:payout.execute",
             constraints=ConstraintSet([Param("amount") <= 10000000]),  # $100k!
             max_calls=999,
@@ -363,7 +361,7 @@ def run_happy_path(backend: MockInsuranceBackend) -> None:
 
     # Get assessment from the backend directly (in production, would be passed via PCA chain)
 
-    claim_id = list(backend.assessments.keys())[0]
+    claim_id = next(iter(backend.assessments.keys()))
     assessment = {
         "claim_id": claim_id,
         "payout_approved": backend.assessments[claim_id].payout_amount,
@@ -465,7 +463,7 @@ def run_attack_scenarios(backend: MockInsuranceBackend) -> None:
     )
 
     print(
-        f"  Initial budget: {payout_agent.get_remaining_calls('cap:method:mcp:payout.execute')}"
+        f"  Initial budget: {payout_agent.get_remaining_calls('cap:tool-call:mcp:payout.execute')}"
     )
 
     # First payout succeeds
@@ -479,7 +477,7 @@ def run_attack_scenarios(backend: MockInsuranceBackend) -> None:
         print(f"  First payout error: {e}")
 
     print(
-        f"  Budget after first: {payout_agent.get_remaining_calls('cap:method:mcp:payout.execute')}"
+        f"  Budget after first: {payout_agent.get_remaining_calls('cap:tool-call:mcp:payout.execute')}"
     )
 
     # Second payout fails
@@ -536,13 +534,13 @@ def run_dx_demo() -> None:
     sandbox = Sandbox(
         tools=TOOLS,
         capabilities=[
-            MethodCapability(method_pattern="mcp:policy.lookup", max_calls=100),
-            MethodCapability(
+            ToolCallCap(method_pattern="mcp:policy.lookup", max_calls=100),
+            ToolCallCap(
                 method_pattern="mcp:claims.create",
                 constraints=ConstraintSet([Param("amount") <= 2500000]),
                 max_calls=50,
             ),
-            MethodCapability(method_pattern="mcp:claims.assess", max_calls=50),
+            ToolCallCap(method_pattern="mcp:claims.assess", max_calls=50),
         ],
         tool_handler=create_tool_handler(backend),
     )
@@ -589,7 +587,7 @@ def run_dx_demo() -> None:
     # 4. Budget consumption tracking
     print("--- 4. Budget Tracking After Operations ---")
     print(
-        f"  Before: policy.lookup budget = {sandbox.get_remaining_calls('cap:method:mcp:policy.lookup')}"
+        f"  Before: policy.lookup budget = {sandbox.get_remaining_calls('cap:tool-call:mcp:policy.lookup')}"
     )
 
     sandbox.execute('await policy_lookup({customer_id: "CUST-001"});')
@@ -597,7 +595,7 @@ def run_dx_demo() -> None:
     sandbox.execute('await policy_lookup({customer_id: "CUST-003"});')
 
     print(
-        f"  After 3 lookups: budget = {sandbox.get_remaining_calls('cap:method:mcp:policy.lookup')}"
+        f"  After 3 lookups: budget = {sandbox.get_remaining_calls('cap:tool-call:mcp:policy.lookup')}"
     )
     print()
 

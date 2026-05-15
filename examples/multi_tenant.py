@@ -6,14 +6,14 @@ Shows how to tenant-scoped capability enforcement.
 Run: python multi_tenant.py
 """
 
-from typing import Any
 from dataclasses import dataclass
+from typing import Any
 
 from amla_sandbox import (
-    Sandbox,
-    MethodCapability,
     ConstraintSet,
     Param,
+    Sandbox,
+    ToolCallCap,
     ToolDefinition,
     create_sandbox_tool,
 )
@@ -111,7 +111,7 @@ def main() -> None:
             content = docs.get(doc_id, "Document not found")
             return {"tenant_id": tenant_id, "document_id": doc_id, "content": content}
 
-        elif method == "write_document":
+        if method == "write_document":
             doc_id = params.get("document_id", "")
             content = params.get("content", "")
             if tenant_id not in tenant_documents:
@@ -130,7 +130,7 @@ def main() -> None:
             tools=tools,
             capabilities=[
                 # Can only access own tenant's documents
-                MethodCapability(
+                ToolCallCap(
                     method_pattern="read_document",
                     constraints=ConstraintSet(
                         [
@@ -138,7 +138,7 @@ def main() -> None:
                         ]
                     ),
                 ),
-                MethodCapability(
+                ToolCallCap(
                     method_pattern="write_document",
                     constraints=ConstraintSet(
                         [
@@ -146,7 +146,7 @@ def main() -> None:
                         ]
                     ),
                 ),
-                MethodCapability(
+                ToolCallCap(
                     method_pattern="delete_document",
                     constraints=ConstraintSet(
                         [
@@ -154,7 +154,7 @@ def main() -> None:
                         ]
                     ),
                 ),
-                MethodCapability(
+                ToolCallCap(
                     method_pattern="query_database",
                     constraints=ConstraintSet(
                         [
@@ -209,7 +209,7 @@ def main() -> None:
         """Create sandbox with plan-based capabilities."""
         capabilities = [
             # All plans: basic document access
-            MethodCapability(
+            ToolCallCap(
                 method_pattern="read_document",
                 constraints=ConstraintSet(
                     [
@@ -217,7 +217,7 @@ def main() -> None:
                     ]
                 ),
             ),
-            MethodCapability(
+            ToolCallCap(
                 method_pattern="write_document",
                 constraints=ConstraintSet(
                     [
@@ -230,7 +230,7 @@ def main() -> None:
         # Pro and Enterprise: database queries
         if tenant.plan in ("pro", "enterprise"):
             capabilities.append(
-                MethodCapability(
+                ToolCallCap(
                     method_pattern="query_database",
                     constraints=ConstraintSet(
                         [
@@ -243,7 +243,7 @@ def main() -> None:
         # Enterprise only: external API calls
         if tenant.plan == "enterprise":
             capabilities.append(
-                MethodCapability(
+                ToolCallCap(
                     method_pattern="call_external_api",
                 )
             )
@@ -251,7 +251,7 @@ def main() -> None:
         # Enterprise only: delete (pro has soft-delete via support)
         if tenant.plan == "enterprise":
             capabilities.append(
-                MethodCapability(
+                ToolCallCap(
                     method_pattern="delete_document",
                     constraints=ConstraintSet(
                         [

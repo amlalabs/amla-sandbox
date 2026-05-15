@@ -10,13 +10,12 @@ In this example:
 Run: python customer_support.py
 """
 
+from datetime import UTC, datetime
 from typing import Any
-from datetime import datetime
 
 from amla_sandbox import (
     create_sandbox_tool,
 )
-
 
 # --- Customer Support Tools ---
 
@@ -88,7 +87,7 @@ def issue_refund(order_id: str, amount: float, reason: str) -> dict[str, Any]:
         "refund_id": f"REF-{order_id}",
         "amount": amount,
         "reason": reason,
-        "processed_at": datetime.now().isoformat(),
+        "processed_at": datetime.now(tz=UTC).isoformat(),
     }
 
 
@@ -138,6 +137,7 @@ def send_email(to: str, subject: str, body: str) -> dict[str, bool]:
         subject: Email subject
         body: Email body
     """
+    _ = body  # part of the email-tool signature; demo function doesn't print the body
     print(f"  [EMAIL] To: {to}")
     print(f"  [EMAIL] Subject: {subject}")
     return {"sent": True}

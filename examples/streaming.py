@@ -9,7 +9,7 @@ This tutorial covers:
   5. Production monitoring best practices
 
 Prerequisites:
-    uv pip install "git+https://github.com/amlalabs/amla-sandbox"
+    pip install amla-sandbox
 
 Run:
     python streaming_and_monitoring.py
@@ -19,7 +19,7 @@ Time: ~15 minutes
 
 import time
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from amla_sandbox import create_sandbox_tool
@@ -145,12 +145,16 @@ def part3_tool_monitoring() -> None:
 
     metrics = ToolCallMetrics()
 
-    def data_fetch(id: int = 0) -> dict[str, Any]:
+    def data_fetch(item_id: int = 0) -> dict[str, Any]:
         """Fetch data by ID."""
         start = time.time()
         metrics.total_calls += 1
         metrics.by_method["data_fetch"] = metrics.by_method.get("data_fetch", 0) + 1
-        result = {"id": id, "status": "ok", "processed_at": datetime.now().isoformat()}
+        result = {
+            "id": item_id,
+            "status": "ok",
+            "processed_at": datetime.now(tz=UTC).isoformat(),
+        }
         metrics.durations.append((time.time() - start) * 1000)
         return result
 
@@ -162,7 +166,7 @@ def part3_tool_monitoring() -> None:
         result = {
             "batch": batch,
             "status": "ok",
-            "processed_at": datetime.now().isoformat(),
+            "processed_at": datetime.now(tz=UTC).isoformat(),
         }
         metrics.durations.append((time.time() - start) * 1000)
         return result
@@ -175,7 +179,7 @@ def part3_tool_monitoring() -> None:
         result = {
             "final": final,
             "status": "ok",
-            "processed_at": datetime.now().isoformat(),
+            "processed_at": datetime.now(tz=UTC).isoformat(),
         }
         metrics.durations.append((time.time() - start) * 1000)
         return result
@@ -337,14 +341,17 @@ def part5_health_checks() -> None:
 
     def database_query(query_id: int) -> dict[str, Any]:
         """Query the database."""
+        _ = query_id
         return _check_service("database")
 
     def cache_get(key: str) -> dict[str, Any]:
         """Get from cache."""
+        _ = key
         return _check_service("cache")
 
     def external_api_call(endpoint: str) -> dict[str, Any]:
         """Call external API."""
+        _ = endpoint
         return _check_service("external_api")
 
     sandbox = create_sandbox_tool(
@@ -452,16 +459,23 @@ def part6_observability_dashboard() -> None:
         finally:
             dashboard.active_operations -= 1
 
+    # `action` is part of the tool schema visible to the model; the demo
+    # records the call but does not branch on the action value. The
+    # `_ = action` discard marks the parameter intentionally unused while
+    # keeping the name in the public schema.
     def api_users(action: str) -> dict[str, Any]:
         """User operations."""
+        _ = action
         return _record_api_call("api_users")
 
     def api_orders(action: str) -> dict[str, Any]:
         """Order operations."""
+        _ = action
         return _record_api_call("api_orders")
 
     def api_products(action: str) -> dict[str, Any]:
         """Product operations."""
+        _ = action
         return _record_api_call("api_products")
 
     sandbox = create_sandbox_tool(

@@ -1,6 +1,6 @@
 """Tests for the auth module."""
 
-from amla_sandbox.auth import EphemeralAuthority, PCA
+from amla_sandbox.auth import PCA, EphemeralAuthority
 
 
 class TestEphemeralAuthority:

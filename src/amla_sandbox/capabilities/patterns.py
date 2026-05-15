@@ -187,7 +187,7 @@ def _pattern_parts_subset(child: list[str], parent: list[str]) -> bool:
 
     # Child * can be subset of parent * or parent **
     if child_first == "*":
-        if parent_first == "*" or parent_first == "**":
+        if parent_first in {"*", "**"}:
             # If parent is **, it's handled above, but let's be safe
             if parent_first == "**":
                 # * is subset of ** (both match single segment at this position)

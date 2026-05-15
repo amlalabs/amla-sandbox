@@ -33,12 +33,13 @@ to get started. They just get a sandbox that's safer than subprocess.
 
 from __future__ import annotations
 
-from typing import Any, Callable, Sequence, cast
+from collections.abc import Callable, Sequence
+from typing import Any, cast
 
-from .capabilities import Constraint, ConstraintSet, MethodCapability
+from .capabilities import Constraint, ConstraintSet, ToolCallCap
+from .langgraph import SandboxTool
 from .sandbox import Sandbox
 from .tools import capability_from_function, tool_from_function
-from .langgraph import SandboxTool
 
 # Default call limit per tool when none specified
 DEFAULT_MAX_CALLS = 100
@@ -116,9 +117,9 @@ def _build_capabilities(
     tools: list[Callable[..., Any]],
     constraints: dict[str, dict[str, Any]] | None,
     max_calls: int | dict[str, int] | None,
-) -> list[MethodCapability]:
+) -> list[ToolCallCap]:
     """Build capabilities from tools with optional constraints."""
-    caps: list[MethodCapability] = []
+    caps: list[ToolCallCap] = []
 
     for func in tools:
         name = func.__name__

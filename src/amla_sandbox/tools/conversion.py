@@ -7,9 +7,10 @@ definitions and capabilities that can be used in the sandbox.
 from __future__ import annotations
 
 import inspect
-from typing import Any, Callable, Sequence, get_type_hints
+from collections.abc import Callable, Sequence
+from typing import Any, get_type_hints
 
-from ..capabilities import ConstraintSet, MethodCapability
+from ..capabilities import ConstraintSet, ToolCallCap
 from ..schema import (
     extract_param_description,
     python_type_to_json_schema,
@@ -87,10 +88,10 @@ def capability_from_function(
     func: Callable[..., Any],
     constraints: ConstraintSet | None = None,
     max_calls: int | None = None,
-) -> MethodCapability:
+) -> ToolCallCap:
     """Generate a capability from a Python function."""
     name = func.__name__
-    return MethodCapability(
+    return ToolCallCap(
         method_pattern=f"mcp:{name}",
         constraints=constraints or ConstraintSet(),
         max_calls=max_calls,

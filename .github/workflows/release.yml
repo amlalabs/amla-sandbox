@@ -1,0 +1,284 @@
+# amla-sandbox mirror release workflow.
+#
+# Fires on tag pushes matching `v*` to amlalabs/amla-sandbox (the mirror repo).
+# The monorepo's release.yml pushes this tag AFTER amla-sandbox-core's mirror
+# has finished publishing its matching tag's GitHub Release. This workflow
+# downloads `amla_sandbox.wasm` from that release and bundles it into the wheel.
+#
+# Pipeline:
+#   1. publish-wheel: fetch the matching amla-sandbox-core release artifact,
+#                      verify its SHA256, build the wheel + sdist with `uv`,
+#                      publish to PyPI via OIDC trusted publishing, then
+#                      attach the wheel + sdist to a GitHub Release on this
+#                      mirror.
+
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+  # Manual re-runs (e.g. after fixing the workflow itself) without forcing
+  # a fresh tag push. Pass `tag` to override `github.ref_name`.
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to release (e.g. v1.2.3). Required for manual dispatch."
+        required: true
+        type: string
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  # Validate the dispatched/pushed tag before the build runs. Catches
+  # `workflow_dispatch` mistakes (e.g. typing `main` into the `tag` input)
+  # AND a malicious dispatch on the mirror that would otherwise check out an
+  # arbitrary ref. Defense-in-depth: the monorepo orchestrator already
+  # validates versions on its side, but a manual dispatch on the mirror that
+  # bypasses the orchestrator entirely must still validate here.
+  validate-tag:
+    name: validate tag
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve tag name
+        id: tag
+        env:
+          DISPATCH_TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          TAG="${DISPATCH_TAG:-${GITHUB_REF_NAME}}"
+          if [ -z "$TAG" ]; then
+            echo "No tag resolved (DISPATCH_TAG empty and GITHUB_REF_NAME empty)" >&2
+            exit 1
+          fi
+          if ! printf '%s' "$TAG" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$'; then
+            echo "Tag '$TAG' does not match the expected vX.Y.Z[-prerelease][+build] pattern" >&2
+            exit 1
+          fi
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "Resolved tag=${TAG}"
+
+      - uses: actions/checkout@v5
+        with:
+          # Force tag-namespace resolution: `refs/tags/<tag>` rules out a
+          # same-named branch shadowing the tag at checkout time.
+          ref: refs/tags/${{ steps.tag.outputs.tag }}
+          fetch-depth: 0
+
+      - name: Assert ref is a tag (not a branch)
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          set -euo pipefail
+          if ! git show-ref --verify --quiet "refs/tags/${TAG}"; then
+            echo "Ref '${TAG}' is not an existing tag (it may be a branch, or a missing/typo'd tag)" >&2
+            exit 1
+          fi
+          echo "Ref ${TAG} is a tag."
+
+      - name: Assert github.ref matches the dispatched tag
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          DISPATCH_TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          # `workflow_dispatch` invoked without `--ref refs/tags/vX.Y.Z` sets
+          # GITHUB_REF to the workflow file's branch (typically
+          # `refs/heads/main`), even though `inputs.tag` names a tag. Several
+          # downstream assertions in this workflow assume the checkout matches
+          # the tag (version check above, provenance verification below).
+          # Fail fast on a mismatched dispatch so we never publish a wheel
+          # whose attestation/source-ref disagrees with its tag.
+          EXPECTED="refs/tags/${DISPATCH_TAG}"
+          ACTUAL="${GITHUB_REF}"
+          if [[ "$ACTUAL" != "$EXPECTED" ]]; then
+            cat <<ERR >&2
+          ERROR: workflow_dispatch must run AGAINST the tag, not a branch.
+            Expected GITHUB_REF: $EXPECTED
+            Actual:              $ACTUAL
+
+          Re-dispatch via API with --ref refs/tags/${DISPATCH_TAG}, or via the
+          "Run workflow" UI with the tag selected (NOT the branch). All
+          downstream version/provenance assertions require the tag ref to
+          match the checkout.
+          ERR
+            exit 1
+          fi
+          echo "GITHUB_REF matches dispatched tag: $ACTUAL"
+
+      - name: Assert pyproject.toml version matches tag
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          set -euo pipefail
+          BARE="${TAG#v}"
+          PY=$(python3 -c 'import tomllib; print(tomllib.load(open("pyproject.toml","rb"))["project"]["version"])')
+          if [ "$PY" != "$BARE" ]; then
+            echo "pyproject.toml project.version ($PY) != tag ($BARE)" >&2
+            exit 1
+          fi
+          echo "pyproject.toml project.version matches tag: $BARE"
+
+  publish-wheel:
+    name: build and publish wheel
+    needs: validate-tag
+    runs-on: ubuntu-latest
+    permissions:
+      # id-token: write is required for PyPI trusted publishing (OIDC).
+      id-token: write
+      # contents: write so we can create the GitHub Release at the end.
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # `refs/tags/<tag>` so checkout resolves to the tag refspec even when
+          # a branch of the same name exists. A bare `${{ inputs.tag }}` would
+          # let git silently prefer a colliding branch over the tag.
+          ref: ${{ inputs.tag && format('refs/tags/{0}', inputs.tag) || github.ref }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Resolve amla-sandbox-core version pin
+        id: deps
+        run: |
+          set -euo pipefail
+          # `.mirror-deps.json` is written into the mirror by the monorepo's
+          # extraction script. It records the exact `amla-sandbox-core` version
+          # this wheel bundles. The file MUST exist at the mirror root.
+          if [ ! -f .mirror-deps.json ]; then
+            echo "Missing .mirror-deps.json. Extraction step is broken." >&2
+            exit 1
+          fi
+          CORE_VERSION="$(python3 -c 'import json,sys; print(json.load(open(".mirror-deps.json"))["amla-sandbox-core"])')"
+          echo "core_version=${CORE_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "Pinned amla-sandbox-core: ${CORE_VERSION}"
+
+      - name: Download amla_sandbox.wasm from amla-sandbox-core release
+        env:
+          CORE_VERSION: ${{ steps.deps.outputs.core_version }}
+        run: |
+          set -euo pipefail
+          mkdir -p src/amla_sandbox/_wasm
+          # The repo is public; no auth needed. We pin to the exact tag.
+          # Asset names match cargo's canonical output (`amla_sandbox.wasm`)
+          # with no rename anywhere in the release pipeline.
+          BASE="https://github.com/amlalabs/amla-sandbox-core/releases/download/${CORE_VERSION}"
+          # `--retry-all-errors` (curl >= 7.71, present on ubuntu-latest) treats
+          # 4xx the same as transient failures; without it, a 404 returned by
+          # GitHub's release-asset CDN during the brief propagation window
+          # immediately after `gh release upload` on amla-sandbox-core would
+          # fail the job. 5 retries at a flat 3s delay gives ~15s of grace,
+          # which empirically covers CDN propagation; `--max-time 60` caps the
+          # per-call budget.
+          curl -fL --retry 5 --retry-all-errors --retry-delay 3 --max-time 60 -o src/amla_sandbox/_wasm/amla_sandbox.wasm "${BASE}/amla_sandbox.wasm"
+          curl -fL --retry 5 --retry-all-errors --retry-delay 3 --max-time 60 -o /tmp/amla_sandbox.wasm.sha256 "${BASE}/amla_sandbox.wasm.sha256"
+
+      - name: Verify amla_sandbox.wasm SHA256
+        run: |
+          set -euo pipefail
+          EXPECTED="$(awk '{print $1}' /tmp/amla_sandbox.wasm.sha256)"
+          ACTUAL="$(sha256sum src/amla_sandbox/_wasm/amla_sandbox.wasm | awk '{print $1}')"
+          if [ "$EXPECTED" != "$ACTUAL" ]; then
+            echo "amla_sandbox.wasm sha256 mismatch" >&2
+            echo "  expected: $EXPECTED" >&2
+            echo "  actual:   $ACTUAL" >&2
+            exit 1
+          fi
+          echo "amla_sandbox.wasm sha256 OK ($ACTUAL)"
+
+      - name: Verify amla_sandbox.wasm provenance attestation
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CORE_VERSION: ${{ steps.deps.outputs.core_version }}
+        run: |
+          set -euo pipefail
+          # Defense in depth: the SHA256 check above proves the downloaded
+          # bytes match what amla-sandbox-core's release publishes, but it
+          # tells us nothing about who built those bytes. `gh attestation
+          # verify` fetches the SLSA build-provenance attestation from
+          # amla-sandbox-core (attached by actions/attest-build-provenance in
+          # its release workflow) and confirms the wasm was produced by that
+          # repo's own GitHub Actions run, signed via Sigstore. If the asset
+          # were ever swapped on the upstream release without re-running the
+          # signed workflow, this step would fail.
+          #
+          # `gh` >= 2.49 is preinstalled on ubuntu-latest. The auto-provided
+          # GITHUB_TOKEN's default `contents:read` is sufficient to read the
+          # public attestation manifest from amla-sandbox-core.
+          #
+          # Trust boundary is tightened on three axes (each is independently
+          # enforced by sigstore at verification time):
+          #   * `--repo amlalabs/amla-sandbox-core` pins the source
+          #     repository: a compromised sibling repo under `amlalabs` with
+          #     attestation rights could no longer forge this artifact.
+          #   * `--signer-workflow ...release.yml` pins the exact workflow
+          #     YAML path that produced the attestation. A different workflow
+          #     in the same repo (even a malicious PR-added one, if it ever
+          #     gained `id-token: write`) would fail verification.
+          #   * `--source-ref refs/tags/${CORE_VERSION}` pins the git ref
+          #     that triggered the build to the exact tag we pinned in
+          #     `.mirror-deps.json`. A re-signed asset built from a different
+          #     tag (or main) would no longer satisfy verification.
+          gh attestation verify \
+            --repo amlalabs/amla-sandbox-core \
+            --signer-workflow amlalabs/amla-sandbox-core/.github/workflows/release.yml \
+            --source-ref "refs/tags/${CORE_VERSION}" \
+            src/amla_sandbox/_wasm/amla_sandbox.wasm
+          echo "amla_sandbox.wasm provenance attestation OK"
+
+      - name: Build wheel and sdist
+        run: uv build
+
+      - name: Publish to PyPI (OIDC trusted publishing)
+        uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b  # v1.14.0
+        # Token-less OIDC. PyPI project must be configured with this repo +
+        # workflow as a trusted publisher (one-time setup).
+        #
+        # `skip-existing: true` makes the upload idempotent. PyPI file
+        # uploads are immutable: if the previous run pushed the wheel + sdist
+        # successfully and then the GitHub Release step failed, a fresh
+        # re-run would otherwise hit PyPI's "file already exists" error and
+        # abort before the release-creation step is reached. With this flag,
+        # already-uploaded files are skipped and only any genuinely-missing
+        # artifacts are uploaded.
+        with:
+          packages-dir: dist
+          skip-existing: true
+
+      - name: Create or update GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DISPATCH_TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          # On workflow_dispatch GITHUB_REF_NAME is the workflow branch, not
+          # the tag the operator typed in. Prefer the dispatch input.
+          VERSION="${DISPATCH_TAG:-${GITHUB_REF_NAME}}"
+
+          # Idempotent: an existing release (e.g. from a partial re-run)
+          # gets its assets overwritten; a missing release is created fresh.
+          # `gh release create` is not tolerant of an existing tag.
+          if gh release view "$VERSION" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            echo "Release $VERSION exists; uploading assets with --clobber"
+            gh release upload "$VERSION" \
+              --repo "${GITHUB_REPOSITORY}" \
+              --clobber \
+              dist/*
+          else
+            gh release create "$VERSION" \
+              --repo "${GITHUB_REPOSITORY}" \
+              --title "$VERSION" \
+              --notes "Automated release for $VERSION. Wheel published to PyPI." \
+              dist/*
+          fi

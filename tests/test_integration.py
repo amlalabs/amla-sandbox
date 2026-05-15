@@ -9,17 +9,15 @@ These tests verify the full flow of:
 # pyright: reportPrivateUsage=warning
 
 import pytest
-
 from amla_sandbox import (
-    MethodCapability,
+    CapabilityError,
     ConstraintSet,
     Param,
-    CapabilityError,
+    ToolCallCap,
     ToolDefinition,
 )
 from amla_sandbox.capabilities import Constraint
 from amla_sandbox.runtime import Runtime
-
 
 # =============================================================================
 # Real Tool Definitions
@@ -177,9 +175,9 @@ DATABASE_TOOLS = [
 # =============================================================================
 
 
-def make_readonly_stripe_cap() -> MethodCapability:
+def make_readonly_stripe_cap() -> ToolCallCap:
     """Capability that only allows reading Stripe data, not mutations."""
-    return MethodCapability(
+    return ToolCallCap(
         method_pattern="stripe/*/list",
         constraints=ConstraintSet(
             [
@@ -190,9 +188,9 @@ def make_readonly_stripe_cap() -> MethodCapability:
     )
 
 
-def make_limited_charge_cap() -> MethodCapability:
+def make_limited_charge_cap() -> ToolCallCap:
     """Capability for creating charges with limits."""
-    return MethodCapability(
+    return ToolCallCap(
         method_pattern="stripe/charges/create",
         constraints=ConstraintSet(
             [
@@ -205,9 +203,9 @@ def make_limited_charge_cap() -> MethodCapability:
     )
 
 
-def make_sandboxed_fs_cap() -> MethodCapability:
+def make_sandboxed_fs_cap() -> ToolCallCap:
     """Capability for filesystem access limited to /tmp."""
-    return MethodCapability(
+    return ToolCallCap(
         method_pattern="fs/*",
         constraints=ConstraintSet(
             [
@@ -217,9 +215,9 @@ def make_sandboxed_fs_cap() -> MethodCapability:
     )
 
 
-def make_readonly_fs_cap() -> MethodCapability:
+def make_readonly_fs_cap() -> ToolCallCap:
     """Capability for read-only filesystem access."""
-    return MethodCapability(
+    return ToolCallCap(
         method_pattern="fs/read",
         constraints=ConstraintSet(
             [
@@ -229,9 +227,9 @@ def make_readonly_fs_cap() -> MethodCapability:
     )
 
 
-def make_readonly_db_cap() -> MethodCapability:
+def make_readonly_db_cap() -> ToolCallCap:
     """Capability for read-only database access."""
-    return MethodCapability(
+    return ToolCallCap(
         method_pattern="db/query",
         constraints=ConstraintSet(
             [
@@ -497,25 +495,25 @@ class TestCapabilitySubsumption:
 
     def test_narrower_pattern_is_subset(self) -> None:
         """Narrower pattern is valid attenuation."""
-        parent = MethodCapability(method_pattern="stripe/**")
-        child = MethodCapability(method_pattern="stripe/charges/*")
+        parent = ToolCallCap(method_pattern="stripe/**")
+        child = ToolCallCap(method_pattern="stripe/charges/*")
 
         assert child.is_subset_of(parent)
 
     def test_broader_pattern_not_subset(self) -> None:
         """Broader pattern is not valid attenuation."""
-        parent = MethodCapability(method_pattern="stripe/charges/*")
-        child = MethodCapability(method_pattern="stripe/**")
+        parent = ToolCallCap(method_pattern="stripe/charges/*")
+        child = ToolCallCap(method_pattern="stripe/**")
 
         assert not child.is_subset_of(parent)
 
     def test_stricter_constraints_is_subset(self) -> None:
         """Stricter constraints are valid attenuation."""
-        parent = MethodCapability(
+        parent = ToolCallCap(
             method_pattern="stripe/**",
             constraints=ConstraintSet([Param("amount") <= 10000]),
         )
-        child = MethodCapability(
+        child = ToolCallCap(
             method_pattern="stripe/charges/*",
             constraints=ConstraintSet([Param("amount") <= 5000]),
         )
@@ -524,11 +522,11 @@ class TestCapabilitySubsumption:
 
     def test_looser_constraints_not_subset(self) -> None:
         """Looser constraints are not valid attenuation."""
-        parent = MethodCapability(
+        parent = ToolCallCap(
             method_pattern="stripe/**",
             constraints=ConstraintSet([Param("amount") <= 5000]),
         )
-        child = MethodCapability(
+        child = ToolCallCap(
             method_pattern="stripe/charges/*",
             constraints=ConstraintSet([Param("amount") <= 10000]),
         )
@@ -537,15 +535,15 @@ class TestCapabilitySubsumption:
 
     def test_lower_max_calls_is_subset(self) -> None:
         """Lower max_calls is valid attenuation."""
-        parent = MethodCapability(method_pattern="stripe/**", max_calls=100)
-        child = MethodCapability(method_pattern="stripe/charges/*", max_calls=50)
+        parent = ToolCallCap(method_pattern="stripe/**", max_calls=100)
+        child = ToolCallCap(method_pattern="stripe/charges/*", max_calls=50)
 
         assert child.is_subset_of(parent)
 
     def test_higher_max_calls_not_subset(self) -> None:
         """Higher max_calls is not valid attenuation."""
-        parent = MethodCapability(method_pattern="stripe/**", max_calls=50)
-        child = MethodCapability(method_pattern="stripe/charges/*", max_calls=100)
+        parent = ToolCallCap(method_pattern="stripe/**", max_calls=50)
+        child = ToolCallCap(method_pattern="stripe/charges/*", max_calls=100)
 
         assert not child.is_subset_of(parent)
 
@@ -606,7 +604,7 @@ class TestComplexConstraints:
 
     def test_nested_path_constraints(self) -> None:
         """Constraints can access nested object paths."""
-        cap = MethodCapability(
+        cap = ToolCallCap(
             method_pattern="api/request",
             constraints=ConstraintSet(
                 [
@@ -648,7 +646,7 @@ class TestComplexConstraints:
     def test_combined_and_or_constraints(self) -> None:
         """Complex AND/OR constraint combinations."""
         # Must be: (amount < 1000) OR (amount >= 1000 AND currency = "usd")
-        cap = MethodCapability(
+        cap = ToolCallCap(
             method_pattern="payment/process",
             constraints=ConstraintSet(
                 [
@@ -692,7 +690,7 @@ class TestEdgeCases:
 
     def test_wildcard_capability_allows_all(self) -> None:
         """Capability with ** pattern allows all methods."""
-        cap = MethodCapability(method_pattern="**")
+        cap = ToolCallCap(method_pattern="**")
 
         cap.validate_call("anything", {})
         cap.validate_call("stripe/charges/create", {"amount": 999999})
@@ -700,13 +698,13 @@ class TestEdgeCases:
 
     def test_empty_params_with_no_constraints(self) -> None:
         """Empty params work when no constraints require them."""
-        cap = MethodCapability(method_pattern="simple/*")
+        cap = ToolCallCap(method_pattern="simple/*")
 
         cap.validate_call("simple/method", {})
 
     def test_missing_required_param_fails(self) -> None:
         """Missing param that constraint needs raises CapabilityError."""
-        cap = MethodCapability(
+        cap = ToolCallCap(
             method_pattern="api/*",
             constraints=ConstraintSet([Param("required_field") == "value"]),
         )

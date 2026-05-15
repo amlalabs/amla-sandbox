@@ -1,17 +1,17 @@
 """Capability enforcement for the Amla sandbox.
 
 This module provides:
-- :class:`MethodCapability` for protecting JSON-RPC method calls
+- :class:`ToolCallCap` for protecting tool calls
 - :class:`ConstraintSet` and :class:`Constraint` for parameter constraints
 - :class:`Param` for ergonomic constraint building
 - Pattern matching utilities for glob patterns
 
 Example::
 
-    >>> from amla_sandbox.capabilities import MethodCapability, ConstraintSet, Param
+    >>> from amla_sandbox.capabilities import ToolCallCap, ConstraintSet, Param
     >>>
     >>> # Create a capability for Stripe charges
-    >>> cap = MethodCapability(
+    >>> cap = ToolCallCap(
     ...     method_pattern="stripe/charges/*",
     ...     constraints=ConstraintSet([
     ...         Param("amount") <= 10000,
@@ -33,27 +33,27 @@ from .constraints import (
     TypeMismatchError,
     ViolationError,
 )
-from .method import (
+from .patterns import method_matches_pattern, pattern_is_subset
+from .tool_call import (
+    TOOL_CALL_CAP_TYPE,
     CallLimitExceededError,
     CapabilityError,
-    MethodCapability,
-    METHOD_CAPABILITY_TYPE,
+    ToolCallCap,
 )
-from .patterns import method_matches_pattern, pattern_is_subset
 
 __all__ = [
-    # Main types
-    "MethodCapability",
-    "METHOD_CAPABILITY_TYPE",
-    # Constraints
-    "Constraint",
-    "ConstraintSet",
-    "Param",
+    "TOOL_CALL_CAP_TYPE",
+    "CallLimitExceededError",
     # Errors
     "CapabilityError",
-    "CallLimitExceededError",
+    # Constraints
+    "Constraint",
     "ConstraintError",
+    "ConstraintSet",
     "MissingParamError",
+    "Param",
+    # Main types
+    "ToolCallCap",
     "TypeMismatchError",
     "ViolationError",
     # Pattern matching

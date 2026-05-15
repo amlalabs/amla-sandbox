@@ -6,7 +6,6 @@ from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
-
 from amla_sandbox.tools import (
     ToolDefinition,
     from_anthropic_tools,
@@ -15,7 +14,6 @@ from amla_sandbox.tools import (
     from_openai,
     from_openai_tools,
 )
-
 
 # === Tests for from_openai_tools ===
 

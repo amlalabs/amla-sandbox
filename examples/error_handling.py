@@ -10,7 +10,7 @@ This tutorial covers:
   6. Debugging and troubleshooting
 
 Prerequisites:
-    uv pip install "git+https://github.com/amlalabs/amla-sandbox"
+    pip install amla-sandbox
 
 Run:
     python error_handling.py
@@ -21,12 +21,12 @@ Time: ~15 minutes
 from typing import Any
 
 from amla_sandbox import (
-    Sandbox,
-    MethodCapability,
+    CapabilityError,
     ConstraintSet,
     Param,
+    Sandbox,
+    ToolCallCap,
     ToolDefinition,
-    CapabilityError,
     create_sandbox_tool,
 )
 
@@ -94,7 +94,7 @@ def part2_capability_violations() -> None:
     sandbox = Sandbox(
         tools=tools,
         capabilities=[
-            MethodCapability(
+            ToolCallCap(
                 method_pattern="transfer",
                 constraints=ConstraintSet(
                     [
@@ -148,7 +148,7 @@ def part2_capability_violations() -> None:
             await transfer({{amount: 100, to: "user{i}"}});
         """)
         print(
-            f"   Call {i + 1}: Success (remaining: {sandbox.get_remaining_calls('cap:method:transfer')})"
+            f"   Call {i + 1}: Success (remaining: {sandbox.get_remaining_calls('cap:tool-call:transfer')})"
         )
 
     # Fourth call should fail
@@ -247,12 +247,8 @@ def part4_tool_handler_errors() -> None:
     class NetworkError(Exception):
         """Custom network error."""
 
-        pass
-
     class ValidationError(Exception):
         """Custom validation error."""
-
-        pass
 
     def fetch_data(source: str = "") -> dict[str, Any]:
         """Fetch data from a source."""
@@ -519,10 +515,12 @@ This avoids wasting compute and provides better error messages.
 
         if can:
             # Actually make the call
-            remaining = sandbox.get_remaining_calls("cap:method:payment_send")
+            remaining = sandbox.get_remaining_calls("cap:tool-call:payment_send")
             if remaining is not None and remaining > 0:
                 sandbox.execute(f"await payment_send({{amount: {amount}}});")
-                new_remaining = sandbox.get_remaining_calls("cap:method:payment_send")
+                new_remaining = sandbox.get_remaining_calls(
+                    "cap:tool-call:payment_send"
+                )
                 print(f"  ${amount}: ✓ Sent (remaining: {new_remaining})")
             else:
                 print(f"  ${amount}: ✗ Budget exhausted")

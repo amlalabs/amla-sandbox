@@ -6,7 +6,8 @@ route calls from the sandbox to Python functions.
 
 from __future__ import annotations
 
-from typing import Any, Callable, Sequence
+from collections.abc import Callable, Sequence
+from typing import Any
 
 
 def create_tool_handler(

@@ -8,10 +8,10 @@ This example shows how to:
 """
 
 from amla_sandbox import (
-    MethodCapability,
+    CapabilityError,
     ConstraintSet,
     Param,
-    CapabilityError,
+    ToolCallCap,
 )
 
 # =============================================================================
@@ -19,7 +19,7 @@ from amla_sandbox import (
 # =============================================================================
 
 # Capability: Allow reading any Stripe data, but limit results
-read_stripe = MethodCapability(
+read_stripe = ToolCallCap(
     method_pattern="stripe/*/list",
     constraints=ConstraintSet(
         [
@@ -30,7 +30,7 @@ read_stripe = MethodCapability(
 )
 
 # Capability: Allow creating charges with limits
-create_charges = MethodCapability(
+create_charges = ToolCallCap(
     method_pattern="stripe/charges/create",
     constraints=ConstraintSet(
         [
@@ -47,7 +47,7 @@ create_charges = MethodCapability(
 # =============================================================================
 
 
-def check_call(cap: MethodCapability, method: str, params: dict[str, object]) -> None:
+def check_call(cap: ToolCallCap, method: str, params: dict[str, object]) -> None:
     """Try a tool call and report result."""
     try:
         cap.validate_call(method, params)
@@ -125,5 +125,5 @@ data = create_charges.to_dict()
 print(f"Serialized: {data}")
 
 # Restore from dict
-restored = MethodCapability.from_dict(data)
+restored = ToolCallCap.from_dict(data)
 print(f"Restored pattern: {restored.method_pattern}")

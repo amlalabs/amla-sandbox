@@ -16,7 +16,7 @@ or any research task that requires gathering and synthesizing information
 from multiple sources.
 
 Requirements:
-    uv pip install "git+https://github.com/amlalabs/amla-sandbox"
+    pip install amla-sandbox
     uv pip install openai python-dotenv
 
 Usage:
@@ -28,15 +28,14 @@ from __future__ import annotations
 
 import os
 import re
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from dotenv import load_dotenv
-from openai import OpenAI
-
 from amla_sandbox import create_sandbox_tool
 from amla_sandbox.tools import from_openai_tools
+from dotenv import load_dotenv
+from openai import OpenAI
 
 # =============================================================================
 # Configuration
@@ -346,7 +345,7 @@ def save_note(
         "content": content,
         "tags": tags or [],
         "source_url": source_url,
-        "created_at": datetime.now().isoformat(),
+        "created_at": datetime.now(tz=UTC).isoformat(),
     }
     _notes_storage.append(note)
 
@@ -394,7 +393,7 @@ def generate_report(title: str, sections: list[str] | None = None) -> dict[str, 
     # Build report from notes
     report_parts = [
         f"# {title}\n",
-        f"*Generated on {datetime.now().strftime('%Y-%m-%d %H:%M')}*\n",
+        f"*Generated on {datetime.now(tz=UTC).strftime('%Y-%m-%d %H:%M')}*\n",
     ]
 
     for section in sections:
@@ -516,9 +515,7 @@ Use console.log() for output. No markdown explanation."""
 
     # Execute in the sandbox
     print("\n⚡ Executing in sandbox...")
-    result = sandbox.run(code, language="javascript")
-
-    return result
+    return sandbox.run(code, language="javascript")
 
 
 # =============================================================================

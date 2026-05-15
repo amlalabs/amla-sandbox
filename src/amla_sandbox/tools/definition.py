@@ -30,7 +30,7 @@ class ToolDefinition:
     description: str
     """Human-readable description of what the tool does."""
 
-    parameters: dict[str, Any] = field(default_factory=lambda: {})
+    parameters: dict[str, Any] = field(default_factory=dict)
     """JSON Schema for tool parameters."""
 
     def to_dict(self) -> dict[str, Any]:
@@ -48,7 +48,7 @@ class ToolDefinition:
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "ToolDefinition":
+    def from_dict(cls, data: dict[str, Any]) -> ToolDefinition:
         """Create from dictionary.
 
         Handles both inputSchema (MCP format) and parameters keys.

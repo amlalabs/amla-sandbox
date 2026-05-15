@@ -38,8 +38,6 @@ from typing import Any, Literal, cast
 class ConstraintError(Exception):
     """Constraint evaluation error."""
 
-    pass
-
 
 class MissingParamError(ConstraintError):
     """Required parameter is missing."""
@@ -118,11 +116,11 @@ class Constraint:
     type: ConstraintType
     param: str = ""
     value: Any = None
-    values: list[Any] = field(default_factory=lambda: [])
+    values: list[Any] = field(default_factory=list)
     prefix: str = ""
     suffix: str = ""
     substring: str = ""
-    constraints: list[Constraint] = field(default_factory=lambda: [])
+    constraints: list[Constraint] = field(default_factory=list)
 
     # Factory methods for each constraint type
 
@@ -441,7 +439,7 @@ class ConstraintSet:
     All constraints must pass for the set to pass.
     """
 
-    constraints: list[Constraint] = field(default_factory=lambda: [])
+    constraints: list[Constraint] = field(default_factory=list)
 
     def __init__(self, constraints: list[Constraint] | None = None) -> None:
         self.constraints = list(constraints) if constraints else []
@@ -528,6 +526,12 @@ class Param:
         ... ])
     """
 
+    # `__eq__` returns a Constraint (DSL operator, not a bool), so Param
+    # instances must not be used as dict keys or set members. Declaring
+    # `__hash__ = None` makes the unhashability explicit and silences
+    # PLW1641 (eq-without-hash).
+    __hash__ = None  # type: ignore[assignment]
+
     def __init__(self, name: str) -> None:
         """Create a Param builder for the given parameter name."""
         self.name = name
@@ -602,8 +606,7 @@ def _get_param_opt(params: dict[str, Any], path: str) -> Any:
     Supports both "foo" and "/foo" style paths for nested access.
     """
     # Support both "/foo" and "foo" style paths
-    if path.startswith("/"):
-        path = path[1:]
+    path = path.removeprefix("/")
 
     parts = path.split("/") if "/" in path else [path]
     current: Any = params

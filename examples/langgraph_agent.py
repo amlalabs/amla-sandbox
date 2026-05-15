@@ -23,12 +23,12 @@ import os
 from typing import Any
 
 from amla_sandbox import (
-    create_sandbox_tool,
-    Sandbox,
-    MethodCapability,
     ConstraintSet,
     Param,
+    Sandbox,
+    ToolCallCap,
     ToolDefinition,
+    create_sandbox_tool,
 )
 
 # =============================================================================
@@ -276,8 +276,12 @@ def part3_react_agent() -> None:
         print("\n" + "-" * 40)
         print("Running with real LLM...")
         try:
-            from langchain_anthropic import ChatAnthropic  # type: ignore[import-untyped]
-            from langgraph.prebuilt import create_react_agent  # type: ignore[import-untyped]
+            from langchain_anthropic import (
+                ChatAnthropic,  # type: ignore[import-untyped]
+            )
+            from langgraph.prebuilt import (
+                create_react_agent,  # type: ignore[import-untyped]
+            )
 
             model = ChatAnthropic(
                 model=os.environ.get(  # type: ignore[call-arg]
@@ -379,9 +383,9 @@ def part4_advanced_config() -> None:
         tools=tools,
         capabilities=[
             # Read-only balance check - unlimited
-            MethodCapability(method_pattern="banking.balance"),
+            ToolCallCap(method_pattern="banking.balance"),
             # Transfers - constrained
-            MethodCapability(
+            ToolCallCap(
                 method_pattern="banking.transfer",
                 constraints=ConstraintSet(
                     [
@@ -395,7 +399,7 @@ def part4_advanced_config() -> None:
                 max_calls=3,  # Max 3 transfers per session
             ),
             # Statements - limited time range
-            MethodCapability(
+            ToolCallCap(
                 method_pattern="banking.statement",
                 constraints=ConstraintSet(
                     [

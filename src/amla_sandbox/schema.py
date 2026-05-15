@@ -22,12 +22,13 @@ Example::
 from __future__ import annotations
 
 __all__ = [
-    "python_type_to_json_schema",
     "dataclass_to_schema",
     "extract_param_description",
+    "python_type_to_json_schema",
 ]
 
 import dataclasses
+import types
 from typing import Any, Union, get_args, get_origin
 
 
@@ -78,17 +79,18 @@ def python_type_to_json_schema(py_type: type) -> str | dict[str, Any]:
     origin = get_origin(py_type)
     args = get_args(py_type)
 
-    # Optional[T] = Union[T, None]
-    if origin is Union:
+    # Optional[T] = Union[T, None]. Both the typing.Union form and the
+    # PEP 604 `T | None` form must be handled — get_origin returns Union
+    # for the former and types.UnionType for the latter.
+    if origin is Union or origin is types.UnionType:
         non_none_args = [a for a in args if a is not type(None)]
         if len(non_none_args) == 1:
             # This is Optional[T]
             inner_schema = python_type_to_json_schema(non_none_args[0])
             if isinstance(inner_schema, str):
                 return {"type": inner_schema, "nullable": True}
-            else:
-                inner_schema["nullable"] = True
-                return inner_schema
+            inner_schema["nullable"] = True
+            return inner_schema
         # For other Union types, default to string
         return "string"
 
@@ -98,8 +100,7 @@ def python_type_to_json_schema(py_type: type) -> str | dict[str, Any]:
             item_schema = python_type_to_json_schema(args[0])
             if isinstance(item_schema, str):
                 return {"type": "array", "items": {"type": item_schema}}
-            else:
-                return {"type": "array", "items": item_schema}
+            return {"type": "array", "items": item_schema}
         return "array"
 
     # Dict[K, V]
@@ -219,9 +220,12 @@ def extract_param_description(docstring: str, param_name: str) -> str | None:
 
         if in_args:
             # Check for new section
-            if stripped.endswith(":") and not stripped.startswith(param_name):
-                if ":" not in stripped[:-1]:  # New section header
-                    break
+            if (
+                stripped.endswith(":")
+                and not stripped.startswith(param_name)
+                and ":" not in stripped[:-1]
+            ):
+                break
 
             # Look for our parameter
             if stripped.startswith(f"{param_name}:"):

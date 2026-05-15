@@ -41,7 +41,6 @@ def precompile_main() -> int:
     try:
         from .runtime.wasm import (
             default_wasm_path,
-            get_cache_dir,
             get_precompiled_path,
             precompile_module,
         )
@@ -49,38 +48,33 @@ def precompile_main() -> int:
         wasm_path = args.wasm_path or default_wasm_path()
 
         if args.verbose:
-            print(f"WASM source: {wasm_path}")
-            print(f"Cache directory: {get_cache_dir()}")
+            pass
 
         # Check if already precompiled
         cwasm_path = get_precompiled_path(wasm_path)
         if cwasm_path.exists():
             if args.verbose:
-                size_mb = cwasm_path.stat().st_size / 1024 / 1024
-                print(f"Already precompiled: {cwasm_path} ({size_mb:.1f}MB)")
+                cwasm_path.stat().st_size / 1024 / 1024
             else:
-                print(f"Already precompiled: {cwasm_path}")
+                pass
             return 0
 
         # Precompile
         if args.verbose:
-            print("Precompiling WASM module...")
+            pass
 
         start = time.time()
         cwasm_path = precompile_module(wasm_path)
-        elapsed = time.time() - start
+        time.time() - start
 
         if args.verbose:
-            size_mb = cwasm_path.stat().st_size / 1024 / 1024
-            print(f"Precompiled in {elapsed * 1000:.0f}ms")
-            print(f"Output: {cwasm_path} ({size_mb:.1f}MB)")
+            cwasm_path.stat().st_size / 1024 / 1024
         else:
-            print(f"Precompiled: {cwasm_path}")
+            pass
 
         return 0
 
-    except Exception as e:
-        print(f"Error: {e}", file=sys.stderr)
+    except Exception:
         return 1
 
 

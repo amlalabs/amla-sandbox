@@ -9,15 +9,14 @@ These tests verify the complete flow:
 
 # pyright: reportPrivateUsage=warning
 
-import pytest
-
 from typing import Any
 
+import pytest
 from amla_sandbox import (
     ConstraintSet,
-    MethodCapability,
     Param,
     Sandbox,
+    ToolCallCap,
     ToolDefinition,
 )
 
@@ -54,7 +53,7 @@ class TestEndToEndToolExecution:
         sandbox = Sandbox(
             tools=tools,
             # Use ** to match all methods, or mcp:math.* for specific
-            capabilities=[MethodCapability(method_pattern="**")],
+            capabilities=[ToolCallCap(method_pattern="**")],
             tool_handler=handle_tool,
         )
 
@@ -114,7 +113,7 @@ class TestEndToEndToolExecution:
 
         sandbox = Sandbox(
             tools=tools,
-            capabilities=[MethodCapability(method_pattern="**")],
+            capabilities=[ToolCallCap(method_pattern="**")],
             tool_handler=handle_tool,
         )
 
@@ -151,7 +150,7 @@ class TestEndToEndToolExecution:
 
         sandbox = Sandbox(
             tools=tools,
-            capabilities=[MethodCapability(method_pattern="**")],
+            capabilities=[ToolCallCap(method_pattern="**")],
             tool_handler=handle_tool,
         )
 
@@ -190,7 +189,7 @@ class TestEndToEndToolExecution:
 
         sandbox = Sandbox(
             tools=tools,
-            capabilities=[MethodCapability(method_pattern="**")],
+            capabilities=[ToolCallCap(method_pattern="**")],
             tool_handler=handle_tool,
         )
 
@@ -207,6 +206,7 @@ class TestEndToEndToolExecution:
         """Tool results can be saved to VFS and processed with shell."""
 
         def handle_tool(method: str, params: dict[str, Any]) -> list[dict[str, Any]]:
+            _ = params  # param name is part of the tool-handler protocol
             if "get_items" in method:
                 return [
                     {"id": 1, "name": "apple", "price": 1.50},
@@ -225,7 +225,7 @@ class TestEndToEndToolExecution:
 
         sandbox = Sandbox(
             tools=tools,
-            capabilities=[MethodCapability(method_pattern="**")],
+            capabilities=[ToolCallCap(method_pattern="**")],
             tool_handler=handle_tool,
         )
 
@@ -267,7 +267,7 @@ class TestEndToEndToolExecution:
 
         with Sandbox(
             tools=tools,
-            capabilities=[MethodCapability(method_pattern="**")],
+            capabilities=[ToolCallCap(method_pattern="**")],
             tool_handler=handle_tool,
         ) as sandbox:
             result = sandbox.execute("""
@@ -371,6 +371,7 @@ class TestCapabilityEnforcementE2E:
         """Tool calls that match capabilities succeed."""
 
         def handle_tool(method: str, params: dict[str, Any]) -> str:
+            _ = (method, params)  # param names are part of the tool-handler protocol
             return "success"
 
         tools = [
@@ -388,7 +389,7 @@ class TestCapabilityEnforcementE2E:
             tools=tools,
             # Use ** for all methods, constraints on params
             capabilities=[
-                MethodCapability(
+                ToolCallCap(
                     method_pattern="**",
                     constraints=ConstraintSet([Param("path").starts_with("/tmp/")]),
                 )
@@ -407,7 +408,7 @@ class TestCapabilityEnforcementE2E:
         """Sandbox.can_call works for introspection."""
         sandbox = Sandbox(
             capabilities=[
-                MethodCapability(
+                ToolCallCap(
                     method_pattern="api/*",
                     constraints=ConstraintSet([Param("limit") <= 100]),
                 )
@@ -441,7 +442,7 @@ class TestEdgeCases:
         # No tool_handler provided
         sandbox = Sandbox(
             tools=tools,
-            capabilities=[MethodCapability(method_pattern="**")],
+            capabilities=[ToolCallCap(method_pattern="**")],
             # tool_handler=None implicitly
         )
 
@@ -460,8 +461,8 @@ class TestEdgeCases:
     def test_get_capabilities_returns_list(self) -> None:
         """get_capabilities returns the configured capabilities."""
         caps = [
-            MethodCapability(method_pattern="api/*"),
-            MethodCapability(method_pattern="fs/*"),
+            ToolCallCap(method_pattern="api/*"),
+            ToolCallCap(method_pattern="fs/*"),
         ]
         sandbox = Sandbox(capabilities=caps)
 
@@ -474,32 +475,31 @@ class TestEdgeCases:
         """Calling shell after __exit__ raises RuntimeError."""
         sandbox = Sandbox()
 
-        # Manually clear runtime (simulates what __exit__ does)
-        sandbox._runtime = None
+        # Manually clear runtime (simulates what __exit__ does). The test
+        # specifically targets the "runtime not initialized" branch, which is
+        # only reachable by mutating the private attribute; a public accessor
+        # would defeat the test's purpose.
+        sandbox._runtime = None  # pyright: ignore[reportPrivateUsage]
 
-        try:
+        with pytest.raises(RuntimeError, match="not initialized"):
             sandbox.shell("echo test")
-            assert False, "Should have raised RuntimeError"
-        except RuntimeError as e:
-            assert "not initialized" in str(e)
 
     def test_execute_without_runtime_raises_error(self) -> None:
         """Calling execute after __exit__ raises RuntimeError."""
         sandbox = Sandbox()
 
-        # Manually clear runtime
-        sandbox._runtime = None
+        # Manually clear runtime: see test_shell_without_runtime_raises_error
+        # for rationale on this private-attribute access.
+        sandbox._runtime = None  # pyright: ignore[reportPrivateUsage]
 
-        try:
+        with pytest.raises(RuntimeError, match="not initialized"):
             sandbox.execute("console.log('test')")
-            assert False, "Should have raised RuntimeError"
-        except RuntimeError as e:
-            assert "not initialized" in str(e)
 
     def test_can_call_without_runtime_returns_false(self) -> None:
         """can_call returns False when runtime is not initialized."""
         sandbox = Sandbox()
-        sandbox._runtime = None
+        # See test_shell_without_runtime_raises_error for rationale.
+        sandbox._runtime = None  # pyright: ignore[reportPrivateUsage]
 
         assert sandbox.can_call("any/method") is False
 
@@ -560,7 +560,7 @@ class TestDXFeatures:
 
         sandbox = Sandbox(
             tools=tools,
-            capabilities=[MethodCapability(method_pattern="**")],
+            capabilities=[ToolCallCap(method_pattern="**")],
         )
 
         result = sandbox.execute("""
@@ -583,7 +583,7 @@ class TestDXFeatures:
 
         sandbox = Sandbox(
             tools=tools,
-            capabilities=[MethodCapability(method_pattern="**")],
+            capabilities=[ToolCallCap(method_pattern="**")],
         )
 
         result = sandbox.execute("""
@@ -649,7 +649,7 @@ class TestDXFeatures:
 
         sandbox = Sandbox(
             tools=tools,
-            capabilities=[MethodCapability(method_pattern="**")],
+            capabilities=[ToolCallCap(method_pattern="**")],
         )
 
         result = sandbox.execute("""
@@ -696,7 +696,7 @@ class TestAsyncToolHandler:
 
         sandbox = Sandbox(
             tools=tools,
-            capabilities=[MethodCapability(method_pattern="**")],
+            capabilities=[ToolCallCap(method_pattern="**")],
             tool_handler=async_handler,
         )
 
@@ -737,7 +737,7 @@ class TestAsyncToolHandler:
 
         sandbox = Sandbox(
             tools=tools,
-            capabilities=[MethodCapability(method_pattern="**")],
+            capabilities=[ToolCallCap(method_pattern="**")],
             tool_handler=sync_handler,
         )
 
@@ -764,6 +764,7 @@ class TestMaxCallsEnforcement:
         call_count = [0]
 
         def handle_tool(method: str, params: dict[str, Any]) -> dict[str, Any]:
+            _ = (method, params)  # param names are part of the tool-handler protocol
             call_count[0] += 1
             return {"count": call_count[0]}
 
@@ -779,7 +780,7 @@ class TestMaxCallsEnforcement:
             tools=tools,
             capabilities=[
                 # ** matches any method including "mcp:counter.increment"
-                MethodCapability(method_pattern="**", max_calls=3)
+                ToolCallCap(method_pattern="**", max_calls=3)
             ],
             tool_handler=handle_tool,
         )
@@ -814,6 +815,7 @@ class TestMaxCallsEnforcement:
         """get_remaining_calls returns remaining budget."""
 
         def handle_tool(method: str, params: dict[str, Any]) -> dict[str, Any]:
+            _ = (method, params)  # param names are part of the tool-handler protocol
             return {"ok": True}
 
         tools = [
@@ -828,12 +830,12 @@ class TestMaxCallsEnforcement:
             tools=tools,
             capabilities=[
                 # Match all methods with this pattern
-                MethodCapability(method_pattern="**", max_calls=5)
+                ToolCallCap(method_pattern="**", max_calls=5)
             ],
             tool_handler=handle_tool,
         )
 
-        cap_key = "cap:method:**"
+        cap_key = "cap:tool-call:**"
 
         # Initial budget
         assert sandbox.get_remaining_calls(cap_key) == 5
@@ -850,25 +852,26 @@ class TestMaxCallsEnforcement:
         """get_call_counts returns all limited capabilities."""
         sandbox = Sandbox(
             capabilities=[
-                MethodCapability(method_pattern="read/*", max_calls=100),
-                MethodCapability(method_pattern="write/*", max_calls=10),
-                MethodCapability(method_pattern="admin/*"),  # No limit
+                ToolCallCap(method_pattern="read/*", max_calls=100),
+                ToolCallCap(method_pattern="write/*", max_calls=10),
+                ToolCallCap(method_pattern="admin/*"),  # No limit
             ],
         )
 
         counts = sandbox.get_call_counts()
         assert counts == {
-            "cap:method:read/*": 100,
-            "cap:method:write/*": 10,
+            "cap:tool-call:read/*": 100,
+            "cap:tool-call:write/*": 10,
         }
         # admin/* not included (no limit)
-        assert "cap:method:admin/*" not in counts
+        assert "cap:tool-call:admin/*" not in counts
 
     def test_can_call_respects_budget(self) -> None:
         """can_call returns False when budget exhausted."""
         call_count = [0]
 
         def handle_tool(method: str, params: dict[str, Any]) -> dict[str, Any]:
+            _ = (method, params)  # param names are part of the tool-handler protocol
             call_count[0] += 1
             return {"ok": True}
 
@@ -884,7 +887,7 @@ class TestMaxCallsEnforcement:
             tools=tools,
             capabilities=[
                 # Use ** to match the method "mcp:limited.action"
-                MethodCapability(method_pattern="**", max_calls=2)
+                ToolCallCap(method_pattern="**", max_calls=2)
             ],
             tool_handler=handle_tool,
         )
@@ -904,6 +907,7 @@ class TestMaxCallsEnforcement:
         call_count = [0]
 
         def handle_tool(method: str, params: dict[str, Any]) -> dict[str, Any]:
+            _ = (method, params)  # param names are part of the tool-handler protocol
             call_count[0] += 1
             return {"count": call_count[0]}
 
@@ -919,9 +923,9 @@ class TestMaxCallsEnforcement:
             tools=tools,
             capabilities=[
                 # Specific cap with exact match (checked first, low limit)
-                MethodCapability(method_pattern="mcp:data.read", max_calls=2),
+                ToolCallCap(method_pattern="mcp:data.read", max_calls=2),
                 # Broader cap (fallback when specific exhausted)
-                MethodCapability(method_pattern="**", max_calls=10),
+                ToolCallCap(method_pattern="**", max_calls=10),
             ],
             tool_handler=handle_tool,
         )
@@ -930,13 +934,13 @@ class TestMaxCallsEnforcement:
         sandbox.execute("await data_read({});")
         sandbox.execute("await data_read({});")
 
-        assert sandbox.get_remaining_calls("cap:method:mcp:data.read") == 0
-        assert sandbox.get_remaining_calls("cap:method:**") == 10
+        assert sandbox.get_remaining_calls("cap:tool-call:mcp:data.read") == 0
+        assert sandbox.get_remaining_calls("cap:tool-call:**") == 10
 
         # 3rd call falls back to broader cap since specific is exhausted
         sandbox.execute("await data_read({});")
 
-        assert sandbox.get_remaining_calls("cap:method:**") == 9
+        assert sandbox.get_remaining_calls("cap:tool-call:**") == 9
         assert call_count[0] == 3
 
 
@@ -994,6 +998,7 @@ class TestAsyncHandlerDetection:
         import asyncio
 
         async def async_handler(method: str, params: dict[str, Any]) -> dict[str, Any]:
+            _ = (method, params)  # param names are part of the tool-handler protocol
             await asyncio.sleep(0.01)
             return {"result": "ok"}
 
@@ -1007,7 +1012,7 @@ class TestAsyncHandlerDetection:
 
         sandbox = Sandbox(
             tools=tools,
-            capabilities=[MethodCapability(method_pattern="**")],
+            capabilities=[ToolCallCap(method_pattern="**")],
             tool_handler=async_handler,
         )
 
@@ -1031,6 +1036,7 @@ class TestAsyncHandlerDetection:
         call_count = [0]
 
         def sync_handler(method: str, params: dict[str, Any]) -> dict[str, Any]:
+            _ = (method, params)  # param names are part of the tool-handler protocol
             call_count[0] += 1
             return {"result": "sync works"}
 
@@ -1044,7 +1050,7 @@ class TestAsyncHandlerDetection:
 
         sandbox = Sandbox(
             tools=tools,
-            capabilities=[MethodCapability(method_pattern="**")],
+            capabilities=[ToolCallCap(method_pattern="**")],
             tool_handler=sync_handler,
         )
 
@@ -1107,6 +1113,7 @@ class TestStreamingOutputCallback:
             chunks.append(chunk)
 
         def handle_tool(method: str, params: dict[str, Any]) -> dict[str, Any]:
+            _ = method  # method name is part of the tool-handler protocol
             return {"value": params.get("x", 0) * 2}
 
         tools = [
@@ -1122,7 +1129,7 @@ class TestStreamingOutputCallback:
 
         sandbox = Sandbox(
             tools=tools,
-            capabilities=[MethodCapability(method_pattern="**")],
+            capabilities=[ToolCallCap(method_pattern="**")],
             tool_handler=handle_tool,
         )
 
@@ -1255,6 +1262,7 @@ class TestVFSStatePersistence:
         call_count = [0]
 
         def expensive_tool(method: str, params: dict[str, Any]) -> dict[str, Any]:
+            _ = (method, params)  # param names are part of the tool-handler protocol
             call_count[0] += 1
             return {"data": [1, 2, 3, 4, 5], "computed_at": call_count[0]}
 
@@ -1268,7 +1276,7 @@ class TestVFSStatePersistence:
 
         sandbox = Sandbox(
             tools=tools,
-            capabilities=[MethodCapability(method_pattern="**")],
+            capabilities=[ToolCallCap(method_pattern="**")],
             tool_handler=expensive_tool,
         )
 
@@ -1304,6 +1312,7 @@ class TestLargeToolResults:
         """Tool results > 2KB are chunked and reassembled correctly."""
 
         def handle_tool(method: str, params: dict[str, Any]) -> dict[str, Any]:
+            _ = params  # params is part of the tool-handler protocol
             if "get_large_data" in method:
                 # Generate data larger than chunk size (2KB)
                 # 500 items * ~20 bytes each = ~10KB
@@ -1321,7 +1330,7 @@ class TestLargeToolResults:
 
         sandbox = Sandbox(
             tools=tools,
-            capabilities=[MethodCapability(method_pattern="**")],
+            capabilities=[ToolCallCap(method_pattern="**")],
             tool_handler=handle_tool,
         )
 
@@ -1340,6 +1349,7 @@ class TestLargeToolResults:
         """Tool results around 50KB are properly handled."""
 
         def handle_tool(method: str, params: dict[str, Any]) -> dict[str, Any]:
+            _ = params  # params is part of the tool-handler protocol
             if "get_50kb_data" in method:
                 # Generate ~50KB of data
                 # Each item is about 50 bytes, so 1000 items = ~50KB
@@ -1360,7 +1370,7 @@ class TestLargeToolResults:
 
         sandbox = Sandbox(
             tools=tools,
-            capabilities=[MethodCapability(method_pattern="**")],
+            capabilities=[ToolCallCap(method_pattern="**")],
             tool_handler=handle_tool,
         )
 
@@ -1384,6 +1394,7 @@ class TestLargeToolResults:
         """Large results with unicode characters are handled correctly."""
 
         def handle_tool(method: str, params: dict[str, Any]) -> dict[str, Any]:
+            _ = params  # params is part of the tool-handler protocol
             if "get_unicode_data" in method:
                 # Generate data with various unicode characters
                 items = [
@@ -1408,7 +1419,7 @@ class TestLargeToolResults:
 
         sandbox = Sandbox(
             tools=tools,
-            capabilities=[MethodCapability(method_pattern="**")],
+            capabilities=[ToolCallCap(method_pattern="**")],
             tool_handler=handle_tool,
         )
 
@@ -1453,7 +1464,7 @@ class TestLargeToolResults:
 
         sandbox = Sandbox(
             tools=tools,
-            capabilities=[MethodCapability(method_pattern="**")],
+            capabilities=[ToolCallCap(method_pattern="**")],
             tool_handler=handle_tool,
         )
 
@@ -1479,6 +1490,7 @@ class TestLargeToolResults:
         import asyncio
 
         async def async_handler(method: str, params: dict[str, Any]) -> dict[str, Any]:
+            _ = params  # params is part of the tool-handler protocol
             if "fetch_large" in method:
                 # Simulate async fetch
                 await asyncio.sleep(0.01)
@@ -1496,7 +1508,7 @@ class TestLargeToolResults:
 
         sandbox = Sandbox(
             tools=tools,
-            capabilities=[MethodCapability(method_pattern="**")],
+            capabilities=[ToolCallCap(method_pattern="**")],
             tool_handler=async_handler,
         )
 
@@ -1515,6 +1527,7 @@ class TestLargeToolResults:
         """Results exactly at chunk boundaries are handled correctly."""
 
         def handle_tool(method: str, params: dict[str, Any]) -> dict[str, Any]:
+            _ = params  # params is part of the tool-handler protocol
             if "get_boundary_data" in method:
                 # Create data that's close to chunk size boundaries
                 # TOOL_RESULT_CHUNK_SIZE is 2048 bytes
@@ -1533,7 +1546,7 @@ class TestLargeToolResults:
 
         sandbox = Sandbox(
             tools=tools,
-            capabilities=[MethodCapability(method_pattern="**")],
+            capabilities=[ToolCallCap(method_pattern="**")],
             tool_handler=handle_tool,
         )
 
@@ -1554,6 +1567,7 @@ class TestLargeToolResults:
         """Deeply nested large objects are chunked and reassembled correctly."""
 
         def handle_tool(method: str, params: dict[str, Any]) -> dict[str, Any]:
+            _ = params  # params is part of the tool-handler protocol
             if "get_nested" in method:
                 # Create nested structure - use explicit Any typing for recursive nesting
                 result: dict[str, Any] = {"level": 0, "data": []}
@@ -1581,7 +1595,7 @@ class TestLargeToolResults:
 
         sandbox = Sandbox(
             tools=tools,
-            capabilities=[MethodCapability(method_pattern="**")],
+            capabilities=[ToolCallCap(method_pattern="**")],
             tool_handler=handle_tool,
         )
 
@@ -1644,7 +1658,7 @@ class TestToolInvocationPaths:
 
         sandbox = Sandbox(
             tools=tools,
-            capabilities=[MethodCapability(method_pattern="**")],
+            capabilities=[ToolCallCap(method_pattern="**")],
             tool_handler=handle_tool,
         )
 
@@ -1685,7 +1699,7 @@ class TestToolInvocationPaths:
 
         sandbox = Sandbox(
             tools=tools,
-            capabilities=[MethodCapability(method_pattern="**")],
+            capabilities=[ToolCallCap(method_pattern="**")],
             tool_handler=handle_tool,
         )
 
@@ -1738,7 +1752,7 @@ class TestToolInvocationPaths:
         # Test JavaScript path
         sandbox_js = Sandbox(
             tools=tools,
-            capabilities=[MethodCapability(method_pattern="**")],
+            capabilities=[ToolCallCap(method_pattern="**")],
             tool_handler=handle_tool_js,
         )
         result_js = sandbox_js.execute("""
@@ -1749,7 +1763,7 @@ class TestToolInvocationPaths:
         # Test shell tool applet path
         sandbox_shell = Sandbox(
             tools=tools,
-            capabilities=[MethodCapability(method_pattern="**")],
+            capabilities=[ToolCallCap(method_pattern="**")],
             tool_handler=handle_tool_shell,
         )
         result_shell = sandbox_shell.shell("tool weather.get --city Tokyo")
@@ -1794,7 +1808,7 @@ class TestToolInvocationPaths:
 
         sandbox = Sandbox(
             tools=tools,
-            capabilities=[MethodCapability(method_pattern="**")],
+            capabilities=[ToolCallCap(method_pattern="**")],
             tool_handler=handle_tool,
         )
 
@@ -1828,7 +1842,7 @@ class TestToolInvocationPaths:
 
         sandbox = Sandbox(
             tools=tools,
-            capabilities=[MethodCapability(method_pattern="**")],
+            capabilities=[ToolCallCap(method_pattern="**")],
         )
 
         result = sandbox.shell("tool --list")
@@ -1860,7 +1874,7 @@ class TestToolInvocationPaths:
 
         sandbox = Sandbox(
             tools=tools,
-            capabilities=[MethodCapability(method_pattern="**")],
+            capabilities=[ToolCallCap(method_pattern="**")],
         )
 
         result = sandbox.shell("tool --list stripe")
@@ -1888,7 +1902,7 @@ class TestToolInvocationPaths:
 
         sandbox = Sandbox(
             tools=tools,
-            capabilities=[MethodCapability(method_pattern="**")],
+            capabilities=[ToolCallCap(method_pattern="**")],
         )
 
         result = sandbox.shell("tool --help calculator.multiply")
@@ -1917,7 +1931,7 @@ class TestToolInvocationPaths:
 
         sandbox = Sandbox(
             tools=tools,
-            capabilities=[MethodCapability(method_pattern="**")],
+            capabilities=[ToolCallCap(method_pattern="**")],
         )
 
         # Only provide name, missing email
@@ -1933,7 +1947,7 @@ class TestToolInvocationPaths:
         """Shell tool applet reports unknown tools."""
         sandbox = Sandbox(
             tools=[],
-            capabilities=[MethodCapability(method_pattern="**")],
+            capabilities=[ToolCallCap(method_pattern="**")],
         )
 
         sandbox.shell("tool nonexistent.tool --param value")
@@ -1948,6 +1962,7 @@ class TestToolInvocationPaths:
         """JavaScript tool writes to VFS, shell tool can read it."""
 
         def handle_tool(method: str, params: dict[str, Any]) -> dict[str, Any]:
+            _ = params  # params is part of the tool-handler protocol
             if "data" in method and "generate" in method:
                 return {"values": [1, 2, 3, 4, 5], "count": 5}
             return {"error": f"Unknown: {method}"}
@@ -1962,7 +1977,7 @@ class TestToolInvocationPaths:
 
         sandbox = Sandbox(
             tools=tools,
-            capabilities=[MethodCapability(method_pattern="**")],
+            capabilities=[ToolCallCap(method_pattern="**")],
             tool_handler=handle_tool,
         )
 
@@ -1980,6 +1995,7 @@ class TestToolInvocationPaths:
         """Shell tool applet output can be piped to other commands."""
 
         def handle_tool(method: str, params: dict[str, Any]) -> dict[str, Any]:
+            _ = params  # params is part of the tool-handler protocol
             if "users" in method and "list" in method:
                 return {
                     "users": [
@@ -2000,7 +2016,7 @@ class TestToolInvocationPaths:
 
         sandbox = Sandbox(
             tools=tools,
-            capabilities=[MethodCapability(method_pattern="**")],
+            capabilities=[ToolCallCap(method_pattern="**")],
             tool_handler=handle_tool,
         )
 

@@ -5,7 +5,7 @@ Curated examples demonstrating amla-sandbox capabilities. Start with `quick_star
 ## Getting Started
 
 ```bash
-uv pip install "git+https://github.com/amlalabs/amla-sandbox"
+pip install amla-sandbox
 
 # Run any example
 python examples/quick_start.py
@@ -21,7 +21,7 @@ python examples/quick_start.py
 | [tools.py](tools.py) | Define tools from Python functions |
 | [async_tools.py](async_tools.py) | Async tool handlers for I/O-bound operations |
 | [constraints.py](constraints.py) | Constraint DSL reference (`Param`, numeric, membership, string) |
-| [capabilities.py](capabilities.py) | MethodCapability patterns and authorization |
+| [capabilities.py](capabilities.py) | ToolCallCap patterns and authorization |
 | [rate_limiting.py](rate_limiting.py) | Call budgets and rate limiting |
 | [framework_ingestion.py](framework_ingestion.py) | Import tools from LangChain, OpenAI, Anthropic |
 

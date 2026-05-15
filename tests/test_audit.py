@@ -4,15 +4,13 @@
 
 from __future__ import annotations
 
-from typing import Any
-
 import json
 import tempfile
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
-
-from amla_sandbox import MethodCapability, Sandbox
+from amla_sandbox import Sandbox, ToolCallCap
 from amla_sandbox.audit import AuditCollector, AuditConfig, AuditEntry
 
 
@@ -57,7 +55,7 @@ class TestAuditEntry:
     """Tests for AuditEntry."""
 
     def test_basic_entry(self) -> None:
-        ts = datetime(2025, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+        ts = datetime(2025, 1, 1, 12, 0, 0, tzinfo=UTC)
         entry = AuditEntry(
             type="test_event",
             session_id="session-abc",
@@ -75,7 +73,7 @@ class TestAuditEntry:
         assert entry.binary_path is None
 
     def test_entry_with_enrichment(self) -> None:
-        ts = datetime(2025, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+        ts = datetime(2025, 1, 1, 12, 0, 0, tzinfo=UTC)
         entry = AuditEntry(
             type="test_event",
             session_id="session-abc",
@@ -91,7 +89,7 @@ class TestAuditEntry:
         assert entry.turn_id == 5
 
     def test_to_dict(self) -> None:
-        ts = datetime(2025, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+        ts = datetime(2025, 1, 1, 12, 0, 0, tzinfo=UTC)
         entry = AuditEntry(
             type="test_event",
             session_id="session-abc",
@@ -113,7 +111,7 @@ class TestAuditEntry:
         assert d["turn_id"] == 3
 
     def test_to_dict_minimal(self) -> None:
-        ts = datetime(2025, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+        ts = datetime(2025, 1, 1, 12, 0, 0, tzinfo=UTC)
         entry = AuditEntry(
             type="test_event",
             session_id="session-abc",
@@ -130,7 +128,7 @@ class TestAuditEntry:
         assert "binary_path" not in d
 
     def test_to_jsonl(self) -> None:
-        ts = datetime(2025, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+        ts = datetime(2025, 1, 1, 12, 0, 0, tzinfo=UTC)
         entry = AuditEntry(
             type="test_event",
             session_id="session-abc",
@@ -179,7 +177,7 @@ class TestAuditCollector:
         collector = AuditCollector()
 
         # Manually add an entry for testing
-        ts = datetime.now(timezone.utc)
+        ts = datetime.now(UTC)
         entry = AuditEntry(type="test", session_id="test", timestamp=ts, data={})
         collector._entries.append(entry)
 
@@ -190,7 +188,7 @@ class TestAuditCollector:
     def test_entries_property(self) -> None:
         collector = AuditCollector()
 
-        ts = datetime.now(timezone.utc)
+        ts = datetime.now(UTC)
         entry1 = AuditEntry(type="a", session_id="test", timestamp=ts, data={})
         entry2 = AuditEntry(type="b", session_id="test", timestamp=ts, data={})
         collector._entries.extend([entry1, entry2])
@@ -203,7 +201,7 @@ class TestAuditCollector:
     def test_get_entries_filter_by_type(self) -> None:
         collector = AuditCollector()
 
-        ts = datetime.now(timezone.utc)
+        ts = datetime.now(UTC)
         collector._entries.extend(
             [
                 AuditEntry(type="tool_call", session_id="test", timestamp=ts, data={}),
@@ -223,9 +221,9 @@ class TestAuditCollector:
     def test_get_entries_filter_by_since(self) -> None:
         collector = AuditCollector()
 
-        ts1 = datetime(2025, 1, 1, 10, 0, 0, tzinfo=timezone.utc)
-        ts2 = datetime(2025, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
-        ts3 = datetime(2025, 1, 1, 14, 0, 0, tzinfo=timezone.utc)
+        ts1 = datetime(2025, 1, 1, 10, 0, 0, tzinfo=UTC)
+        ts2 = datetime(2025, 1, 1, 12, 0, 0, tzinfo=UTC)
+        ts3 = datetime(2025, 1, 1, 14, 0, 0, tzinfo=UTC)
 
         collector._entries.extend(
             [
@@ -236,7 +234,7 @@ class TestAuditCollector:
         )
 
         # Filter entries after 11:00
-        since = datetime(2025, 1, 1, 11, 0, 0, tzinfo=timezone.utc)
+        since = datetime(2025, 1, 1, 11, 0, 0, tzinfo=UTC)
         entries = list(collector.get_entries(since=since))
         assert len(entries) == 2
         assert entries[0].type == "b"
@@ -250,7 +248,7 @@ class TestAuditCollector:
 
         with AuditCollector(config) as collector:
             # Add entry directly for testing
-            ts = datetime.now(timezone.utc)
+            ts = datetime.now(UTC)
             entry = AuditEntry(type="test", session_id="test", timestamp=ts, data={})
             collector._entries.append(entry)
             collector._file.write(entry.to_jsonl() + "\n")
@@ -295,7 +293,7 @@ class TestAuditCollector:
         collector = AuditCollector(config)
 
         # Manually add and write entries
-        ts = datetime.now(timezone.utc)
+        ts = datetime.now(UTC)
         entry = AuditEntry(
             type="test_event",
             session_id="session-123",
@@ -333,7 +331,7 @@ class TestSandboxAuditIntegration:
 
         sandbox = Sandbox(
             tools=[],
-            capabilities=[MethodCapability(method_pattern="**")],
+            capabilities=[ToolCallCap(method_pattern="**")],
             audit_config=config,
         )
 
@@ -347,7 +345,7 @@ class TestSandboxAuditIntegration:
         """Test that Sandbox works without audit config."""
         sandbox = Sandbox(
             tools=[],
-            capabilities=[MethodCapability(method_pattern="**")],
+            capabilities=[ToolCallCap(method_pattern="**")],
         )
 
         assert sandbox.audit_collector is None
@@ -366,7 +364,7 @@ class TestSandboxAuditIntegration:
 
         with Sandbox(
             tools=[],
-            capabilities=[MethodCapability(method_pattern="**")],
+            capabilities=[ToolCallCap(method_pattern="**")],
             audit_config=config,
         ) as sandbox:
             collector = sandbox.audit_collector
@@ -385,14 +383,14 @@ class TestSandboxAuditIntegration:
 
         with Sandbox(
             tools=[],
-            capabilities=[MethodCapability(method_pattern="**")],
+            capabilities=[ToolCallCap(method_pattern="**")],
             audit_config=config,
         ) as sandbox:
             collector = sandbox.audit_collector
             assert collector is not None
 
             # Manually add some entries for testing
-            ts = datetime.now(timezone.utc)
+            ts = datetime.now(UTC)
             collector._entries.extend(
                 [
                     AuditEntry(

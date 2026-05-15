@@ -122,9 +122,9 @@ def get_stock_price(symbol: str) -> dict[str, Any]:
 
 def example_1_basic_sandbox() -> None:
     """Example 1: Basic code generation with sandbox tool."""
+    from amla_sandbox import create_sandbox_tool
     from langchain_openai import ChatOpenAI
     from langgraph.prebuilt import create_react_agent
-    from amla_sandbox import create_sandbox_tool
 
     print("\n" + "=" * 60)
     print("Example 1: Code Generation (Recommended with GPT-5)")
@@ -171,9 +171,9 @@ def example_1_basic_sandbox() -> None:
 
 def example_2_multiple_tools() -> None:
     """Example 2: Multiple tools with code generation."""
+    from amla_sandbox import create_sandbox_tool
     from langchain_openai import ChatOpenAI
     from langgraph.prebuilt import create_react_agent
-    from amla_sandbox import create_sandbox_tool
 
     print("\n" + "=" * 60)
     print("Example 2: Multiple Tools with Code Generation")
@@ -224,9 +224,9 @@ def example_2_multiple_tools() -> None:
 
 def example_3_shell_mode() -> None:
     """Example 3: Using shell mode with language='shell'."""
+    from amla_sandbox import create_sandbox_tool
     from langchain_openai import ChatOpenAI
     from langgraph.prebuilt import create_react_agent
-    from amla_sandbox import create_sandbox_tool
 
     print("\n" + "=" * 60)
     print("Example 3: Shell Mode Execution")
@@ -301,9 +301,9 @@ def example_3_shell_mode() -> None:
 
 def example_4_with_constraints() -> None:
     """Example 4: Sandbox with constraints and rate limits."""
+    from amla_sandbox import create_sandbox_tool
     from langchain_openai import ChatOpenAI
     from langgraph.prebuilt import create_react_agent
-    from amla_sandbox import create_sandbox_tool
 
     print("\n" + "=" * 60)
     print("Example 4: Constrained Sandbox")
@@ -361,9 +361,9 @@ def example_4_with_constraints() -> None:
 
 def example_5_composable_prompt() -> None:
     """Example 5: Custom persona with composable system prompt."""
+    from amla_sandbox import create_sandbox_tool
     from langchain_openai import ChatOpenAI
     from langgraph.prebuilt import create_react_agent
-    from amla_sandbox import create_sandbox_tool
 
     print("\n" + "=" * 60)
     print("Example 5: Custom Persona with Code Generation")
@@ -428,9 +428,9 @@ When checking weather, consider:
 
 def example_6_separate_tools() -> None:
     """Example 6: Separate JS and Shell tools (cleaner for LLM)."""
+    from amla_sandbox import create_sandbox_tool
     from langchain_openai import ChatOpenAI
     from langgraph.prebuilt import create_react_agent
-    from amla_sandbox import create_sandbox_tool
 
     print("\n" + "=" * 60)
     print("Example 6: Separate JS and Shell Tools")

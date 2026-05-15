@@ -1,15 +1,15 @@
-"""Method capability for JSON-RPC method protection.
+"""Tool call capability for protecting tool invocations.
 
-This module provides MethodCapability for protecting JSON-RPC method calls
+This module provides ToolCallCap for protecting tool calls
 with glob patterns, parameter constraints, and call count limits.
 
 Example::
 
-    >>> from amla_sandbox.capabilities import MethodCapability
+    >>> from amla_sandbox.capabilities import ToolCallCap
     >>> from amla_sandbox.capabilities import Param, ConstraintSet
     >>>
     >>> # Create a capability for Stripe charges
-    >>> cap = MethodCapability(
+    >>> cap = ToolCallCap(
     ...     method_pattern="stripe/charges/*",
     ...     constraints=ConstraintSet([
     ...         Param("amount") <= 10000,
@@ -40,8 +40,6 @@ from .patterns import method_matches_pattern, pattern_is_subset
 class CapabilityError(Exception):
     """Error during capability validation."""
 
-    pass
-
 
 class CallLimitExceededError(CapabilityError):
     """Raised when a capability's max_calls limit has been reached.
@@ -59,14 +57,14 @@ class CallLimitExceededError(CapabilityError):
         )
 
 
-METHOD_CAPABILITY_TYPE = "method"
+TOOL_CALL_CAP_TYPE = "tool-call"
 
 
 @dataclass
-class MethodCapability:
-    """Capability protecting JSON-RPC method calls.
+class ToolCallCap:
+    """Capability protecting tool calls.
 
-    A method capability grants permission to call methods matching a glob pattern,
+    A tool call capability grants permission to call tools matching a glob pattern,
     subject to parameter constraints and optional call count limits.
 
     Attenuation:
@@ -78,7 +76,7 @@ class MethodCapability:
 
     Key Format:
         The capability key is derived from the method pattern:
-        ``cap:method:{pattern}`` (e.g., ``cap:method:stripe/charges/*``)
+        ``cap:tool-call:{pattern}`` (e.g., ``cap:tool-call:stripe/charges/*``)
 
     Attributes:
         method_pattern: Glob pattern for method names (e.g., "stripe/charges/*")
@@ -95,15 +93,15 @@ class MethodCapability:
     def key(self) -> str:
         """Get the capability key derived from the method pattern.
 
-        Keys are formatted as ``cap:method:{pattern}``.
+        Keys are formatted as ``cap:tool-call:{pattern}``.
 
         Returns:
             The capability key string.
         """
-        return f"cap:method:{self.method_pattern}"
+        return f"cap:tool-call:{self.method_pattern}"
 
     def validate_call(self, method: str, params: dict[str, Any]) -> None:
-        """Validate a method call against this capability.
+        """Validate a tool call against this capability.
 
         Checks:
         1. Method name matches the pattern
@@ -130,7 +128,7 @@ class MethodCapability:
         except ConstraintError as e:
             raise CapabilityError(str(e)) from e
 
-    def is_subset_of(self, parent: MethodCapability) -> bool:
+    def is_subset_of(self, parent: ToolCallCap) -> bool:
         """Check if this capability is a valid attenuation of a parent.
 
         A child is a valid attenuation if it grants equal or fewer permissions:
@@ -146,15 +144,15 @@ class MethodCapability:
 
         Example::
 
-            >>> parent = MethodCapability(method_pattern="stripe/**", max_calls=100)
+            >>> parent = ToolCallCap(method_pattern="stripe/**", max_calls=100)
             >>>
             >>> # Valid: narrower pattern, lower limit
-            >>> child = MethodCapability(method_pattern="stripe/charges/*", max_calls=50)
+            >>> child = ToolCallCap(method_pattern="stripe/charges/*", max_calls=50)
             >>> child.is_subset_of(parent)
             True
             >>>
             >>> # Invalid: broader pattern
-            >>> invalid = MethodCapability(method_pattern="**")
+            >>> invalid = ToolCallCap(method_pattern="**")
             >>> invalid.is_subset_of(parent)
             False
         """
@@ -206,14 +204,14 @@ class MethodCapability:
         return result
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> MethodCapability:
+    def from_dict(cls, data: dict[str, Any]) -> ToolCallCap:
         """Create from a dictionary.
 
         Args:
             data: Dictionary representation
 
         Returns:
-            New MethodCapability instance
+            New ToolCallCap instance
         """
         constraints_data = data.get("constraints", [])
         constraints = ConstraintSet([_dict_to_constraint(c) for c in constraints_data])

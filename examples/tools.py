@@ -12,10 +12,10 @@ This example shows how to:
 from typing import Any
 
 from amla_sandbox import (
-    Sandbox,
-    MethodCapability,
     ConstraintSet,
     Param,
+    Sandbox,
+    ToolCallCap,
     ToolDefinition,
 )
 
@@ -80,11 +80,11 @@ TOOLS = [
 
 CAPABILITIES = [
     # Allow current weather (no constraints)
-    MethodCapability(
+    ToolCallCap(
         method_pattern="weather/current",
     ),
     # Allow forecast with day limit
-    MethodCapability(
+    ToolCallCap(
         method_pattern="weather/forecast",
         constraints=ConstraintSet(
             [
@@ -93,7 +93,7 @@ CAPABILITIES = [
         ),
     ),
     # Allow creating notes, but not deleting
-    MethodCapability(
+    ToolCallCap(
         method_pattern="notes/create",
         max_calls=10,  # Max 10 notes per session
     ),

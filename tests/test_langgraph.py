@@ -1,8 +1,9 @@
 """Tests for LangGraph integration module."""
 
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any
 
+import pytest
 from amla_sandbox import (
     ExecutionResult,
     SandboxTool,
@@ -11,7 +12,6 @@ from amla_sandbox import (
     tool_from_function,
 )
 from amla_sandbox.capabilities import ConstraintSet, Param
-
 
 # === Test fixtures: sample tools ===
 
@@ -55,6 +55,11 @@ def transfer_money(amount: float, to_account: str, memo: str = "") -> bool:
         to_account: Destination account ID.
         memo: Optional transfer memo.
     """
+    # Fixture is consumed by `tool_from_function`, which inspects the
+    # signature to build a JSON schema. Parameter names are load-bearing,
+    # so they cannot be renamed. The `_ = ...` discard marks them as
+    # intentionally unused without changing the schema.
+    _ = (amount, to_account, memo)
     return True
 
 
@@ -159,11 +164,8 @@ class TestCreateToolHandler:
         """Test that unknown tools raise ValueError."""
         handler = create_tool_handler([add])
 
-        try:
+        with pytest.raises(ValueError, match="Unknown tool"):
             handler("unknown", {})
-            assert False, "Should have raised"
-        except ValueError as e:
-            assert "Unknown tool" in str(e)
 
     def test_passes_all_parameters(self) -> None:
         """Test that all parameters are passed through."""
@@ -284,7 +286,7 @@ class Order:
 
     order_id: str
     items: list[OrderItem]
-    customer_id: Optional[str] = None
+    customer_id: str | None = None
 
 
 class TestComplexTypeSupport:
@@ -312,7 +314,7 @@ class TestComplexTypeSupport:
     def test_optional_type(self) -> None:
         """Test function with Optional parameter."""
 
-        def find_user(user_id: str, email: Optional[str] = None) -> dict[str, Any]:
+        def find_user(user_id: str, email: str | None = None) -> dict[str, Any]:
             """Find a user by ID or email."""
             return {"id": user_id, "email": email}
 

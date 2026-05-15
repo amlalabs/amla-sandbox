@@ -12,7 +12,7 @@ This tutorial covers:
   8. Combining shell and JavaScript
 
 Prerequisites:
-    uv pip install "git+https://github.com/amlalabs/amla-sandbox"
+    pip install amla-sandbox
 
 Run:
     python shell_pipelines.py

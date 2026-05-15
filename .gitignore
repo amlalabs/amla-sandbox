@@ -1,9 +1,4 @@
-__pycache__/
-*.py[cod]
-.pytest_cache/
-.ruff_cache/
-.mypy_cache/
-*.egg-info/
-dist/
-build/
-.eggs/
+# The WASM binary is built from src/rust and copied here by
+# scripts/build-amla-sandbox-wasm.sh (or fetched from amla-sandbox-core's
+# GitHub Release in the production mirror CI). It is not tracked in git.
+src/amla_sandbox/_wasm/amla_sandbox.wasm

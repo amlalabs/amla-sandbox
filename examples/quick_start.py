@@ -10,7 +10,7 @@ Progressive disclosure layers:
   - Layer 2: With constraints and call limits
 
 Requirements:
-    uv pip install "git+https://github.com/amlalabs/amla-sandbox"
+    pip install amla-sandbox
 
 Usage:
     python quick_start.py
@@ -19,7 +19,6 @@ Usage:
 from typing import Any
 
 from amla_sandbox import create_sandbox_tool
-
 
 # =============================================================================
 # Sample tools for demonstration

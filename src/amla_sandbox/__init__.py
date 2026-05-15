@@ -32,22 +32,35 @@ What's provided:
 # Audit logging
 from .audit import AuditCollector, AuditConfig, AuditEntry
 
+# Simple sandbox tool API (AI SDK-style ergonomics)
+from .bash_tool import create_sandbox_tool
+
 # Capabilities (foundational enforcement layer)
 from .capabilities import (
+    TOOL_CALL_CAP_TYPE,
     CallLimitExceededError,
     CapabilityError,
     Constraint,
     ConstraintError,
     ConstraintSet,
-    MethodCapability,
-    METHOD_CAPABILITY_TYPE,
     MissingParamError,
     Param,
+    ToolCallCap,
     TypeMismatchError,
     ViolationError,
     method_matches_pattern,
     pattern_is_subset,
 )
+
+# CodeAct integration (JavaScript sandbox for LangGraph)
+from .codeact import (
+    JS_CODEACT_PROMPT,
+    create_amla_codeact,
+    create_amla_sandbox,
+)
+
+# LangGraph tool-based integration
+from .langgraph import ExecutionResult, SandboxTool
 
 # Runtime
 from .runtime import Runtime, RuntimeConfig, RuntimeError, RuntimeStatus
@@ -67,83 +80,70 @@ from .tools import (
     capability_from_function,
     create_tool_handler,
     format_tool_descriptions_js,
-    tool_from_function,
     # Framework ingestion
     from_anthropic_tools,
     from_claude,
     from_langchain,
     from_openai,
     from_openai_tools,
+    tool_from_function,
 )
-
-# CodeAct integration (JavaScript sandbox for LangGraph)
-from .codeact import (
-    JS_CODEACT_PROMPT,
-    create_amla_codeact,
-    create_amla_sandbox,
-)
-
-# LangGraph tool-based integration
-from .langgraph import ExecutionResult, SandboxTool
-
-# Simple sandbox tool API (AI SDK-style ergonomics)
-from .bash_tool import create_sandbox_tool
 
 __all__ = [
-    # === High-level API (recommended) ===
-    # Simple sandbox tool (AI SDK-style ergonomics)
-    "create_sandbox_tool",
-    # CodeAct integration (recommended for LangGraph)
-    "create_amla_codeact",  # One-liner: CodeAct agent with Amla sandbox
-    "create_amla_sandbox",  # Create sandbox fn for custom CodeAct setup
     "JS_CODEACT_PROMPT",  # JavaScript-targeted system prompt
-    "format_tool_descriptions_js",  # Format tools for JS prompt
-    # LangGraph tool
-    "SandboxTool",
+    "TOOL_CALL_CAP_TYPE",
+    "AsyncToolHandler",
+    # Audit logging
+    "AuditCollector",
+    "AuditConfig",
+    "AuditEntry",
+    "CallLimitExceededError",
+    # Errors
+    "CapabilityError",
+    "Constraint",
+    "ConstraintError",
+    "ConstraintSet",
     "ExecutionResult",
-    # Tool helpers
-    "ToolDefinition",
-    "tool_from_function",
-    "capability_from_function",
-    "create_tool_handler",
-    # Framework ingestion
-    "from_langchain",
-    "from_openai_tools",
-    "from_openai",
-    "from_anthropic_tools",
-    "from_claude",
-    # === Low-level API ===
-    # Main class
-    "Sandbox",
+    "MissingParamError",
+    "Param",
     # Runtime
     "Runtime",
     "RuntimeConfig",
     "RuntimeError",
     "RuntimeStatus",
+    # === Low-level API ===
+    # Main class
+    "Sandbox",
+    # LangGraph tool
+    "SandboxTool",
+    "SyncToolHandler",
+    # Capabilities
+    "ToolCallCap",
+    # Tool helpers
+    "ToolDefinition",
     # Tool handler types
     "ToolHandler",
-    "SyncToolHandler",
-    "AsyncToolHandler",
-    # Capabilities
-    "MethodCapability",
-    "METHOD_CAPABILITY_TYPE",
-    "Constraint",
-    "ConstraintSet",
-    "Param",
-    # Errors
-    "CapabilityError",
-    "CallLimitExceededError",
-    "ConstraintError",
-    "MissingParamError",
     "TypeMismatchError",
     "ViolationError",
+    "capability_from_function",
+    # CodeAct integration (recommended for LangGraph)
+    "create_amla_codeact",  # One-liner: CodeAct agent with Amla sandbox
+    "create_amla_sandbox",  # Create sandbox fn for custom CodeAct setup
+    # === High-level API (recommended) ===
+    # Simple sandbox tool (AI SDK-style ergonomics)
+    "create_sandbox_tool",
+    "create_tool_handler",
+    "format_tool_descriptions_js",  # Format tools for JS prompt
+    "from_anthropic_tools",
+    "from_claude",
+    # Framework ingestion
+    "from_langchain",
+    "from_openai",
+    "from_openai_tools",
     # Pattern matching
     "method_matches_pattern",
     "pattern_is_subset",
-    # Audit logging
-    "AuditCollector",
-    "AuditConfig",
-    "AuditEntry",
     # Precompilation
     "precompile_module",
+    "tool_from_function",
 ]

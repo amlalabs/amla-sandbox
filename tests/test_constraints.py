@@ -1,7 +1,6 @@
 """Tests for constraint system."""
 
 import pytest
-
 from amla_sandbox.capabilities.constraints import (
     Constraint,
     ConstraintError,

@@ -9,13 +9,11 @@ Tests the _create_tool_result_responses function which handles:
 
 # pyright: reportPrivateUsage=warning
 
-from typing import Any
-
-
 import base64
 import json
 import sys
 from pathlib import Path
+from typing import Any
 
 import pytest
 

@@ -24,7 +24,7 @@ Run:
 import argparse
 import os
 import sys
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from dotenv import load_dotenv
@@ -57,7 +57,7 @@ def get_stock_price(symbol: str) -> dict[str, Any]:
         return {
             "symbol": symbol,
             **stocks[symbol],
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.now(tz=UTC).isoformat(),
         }
     return {"symbol": symbol, "error": "Symbol not found"}
 
@@ -207,7 +207,7 @@ def execute_trade(symbol: str, action: str, quantity: int) -> dict[str, Any]:
         "price": price_data["price"],
         "total": round(total, 2),
         "status": "executed",
-        "timestamp": datetime.now().isoformat(),
+        "timestamp": datetime.now(tz=UTC).isoformat(),
     }
 
 
@@ -220,7 +220,7 @@ def get_portfolio() -> dict[str, Any]:
             {"symbol": "NVDA", "shares": 25, "avg_cost": 450.00},
         ],
         "cash": 25000.00,
-        "last_updated": datetime.now().isoformat(),
+        "last_updated": datetime.now(tz=UTC).isoformat(),
     }
 
 
@@ -255,9 +255,9 @@ def calculate_metrics(prices: list[float]) -> dict[str, float | str]:
 
 def example_1_portfolio_analysis() -> None:
     """Example 1: Multi-step portfolio analysis with code generation."""
+    from amla_sandbox import create_sandbox_tool
     from langchain_openai import ChatOpenAI
     from langgraph.prebuilt import create_react_agent
-    from amla_sandbox import create_sandbox_tool
 
     print("\n" + "=" * 60)
     print("Example 1: Portfolio Analysis (Code Generation)")
@@ -322,9 +322,9 @@ This example shows the LLM writing JavaScript to:
 
 def example_2_stock_screener() -> None:
     """Example 2: Stock screening with filtering and sorting."""
+    from amla_sandbox import create_sandbox_tool
     from langchain_openai import ChatOpenAI
     from langgraph.prebuilt import create_react_agent
-    from amla_sandbox import create_sandbox_tool
 
     print("\n" + "=" * 60)
     print("Example 2: Stock Screener (Loop + Filter + Sort)")
@@ -387,9 +387,9 @@ This example shows the LLM writing JavaScript to:
 
 def example_3_news_sentiment_analysis() -> None:
     """Example 3: News aggregation with sentiment analysis."""
+    from amla_sandbox import create_sandbox_tool
     from langchain_openai import ChatOpenAI
     from langgraph.prebuilt import create_react_agent
-    from amla_sandbox import create_sandbox_tool
 
     print("\n" + "=" * 60)
     print("Example 3: News Sentiment Analysis (Aggregation + Shell)")
@@ -452,9 +452,9 @@ This example shows the LLM:
 
 def example_4_trading_strategy() -> None:
     """Example 4: Conditional trading based on analysis."""
+    from amla_sandbox import create_sandbox_tool
     from langchain_openai import ChatOpenAI
     from langgraph.prebuilt import create_react_agent
-    from amla_sandbox import create_sandbox_tool
 
     print("\n" + "=" * 60)
     print("Example 4: Trading Strategy (Conditionals + Execution)")
@@ -520,9 +520,9 @@ This example shows the LLM writing code that:
 
 def example_5_data_pipeline() -> None:
     """Example 5: Complex data pipeline with shell integration."""
+    from amla_sandbox import create_sandbox_tool
     from langchain_openai import ChatOpenAI
     from langgraph.prebuilt import create_react_agent
-    from amla_sandbox import create_sandbox_tool
 
     print("\n" + "=" * 60)
     print("Example 5: Data Pipeline (JS + Shell + VFS)")

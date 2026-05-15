@@ -1,6 +1,9 @@
 [project]
 name = "amla-sandbox"
-version = "0.1.7"
+# Placeholder. The real release version is injected at extract time by
+# scripts/extract-mirror.py (which reads it from the release-vX.Y.Z tag).
+# See mirrors/README.md for the release flow.
+version = "0.2.5"
 description = "Capability-based sandboxed runtime for AI agents"
 readme = "README.md"
 license = {file = "LICENSE"}
@@ -70,6 +73,7 @@ artifacts = ["src/amla_sandbox/_wasm/*.wasm"]
 
 [tool.hatch.build.targets.sdist]
 # Include WASM in source distribution too
+artifacts = ["src/amla_sandbox/_wasm/*.wasm"]
 include = [
     "src/",
     "tests/",
@@ -95,6 +99,8 @@ exclude = [
     "examples/agents",
     # LangGraph examples have incomplete type stubs from langgraph/langchain
     "examples/langgraph_*.py",
+    "examples/prompt_injection_demo.py",
+    "examples/run_demo.py",
     "examples/quick_start.py",
 ]
 pythonVersion = "3.11"
@@ -103,6 +109,22 @@ typeCheckingMode = "strict"
 reportUnknownMemberType = "error"
 reportPrivateUsage = "error"
 reportUnusedImport = "error"
+# Maximum strictness — promote every remaining strict-family warning to
+# error so that no relaxation is implicit.
+reportUnknownParameterType = "error"
+reportUnknownArgumentType = "error"
+reportUnknownVariableType = "error"
+reportMissingParameterType = "error"
+reportMissingTypeArgument = "error"
+reportUnusedVariable = "error"
+reportOptionalMemberAccess = "error"
+reportMissingTypeStubs = "error"
+reportImplicitOverride = "error"
+reportUnnecessaryTypeIgnoreComment = "error"
+reportUnnecessaryCast = "error"
+reportUnnecessaryComparison = "error"
+reportUnnecessaryContains = "error"
+reportShadowedImports = "error"
 
 [dependency-groups]
 dev = [

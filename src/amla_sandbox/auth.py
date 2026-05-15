@@ -21,7 +21,6 @@ import time
 from dataclasses import dataclass, field
 from typing import Any, cast
 
-
 # =============================================================================
 # Canonical CBOR Encoding (matching Rust's ciborium)
 # =============================================================================
@@ -35,14 +34,13 @@ def _cbor_encode_uint(major_type: int, n: int) -> bytes:
     """Encode unsigned integer with major type in CBOR (canonical form)."""
     if n < 24:
         return bytes([major_type | n])
-    elif n < 256:
+    if n < 256:
         return bytes([major_type | 24, n])
-    elif n < 65536:
+    if n < 65536:
         return bytes([major_type | 25]) + struct.pack(">H", n)
-    elif n < 4294967296:
+    if n < 4294967296:
         return bytes([major_type | 26]) + struct.pack(">I", n)
-    else:
-        return bytes([major_type | 27]) + struct.pack(">Q", n)
+    return bytes([major_type | 27]) + struct.pack(">Q", n)
 
 
 def _cbor_encode_text(s: str) -> bytes:
@@ -82,31 +80,29 @@ def _cbor_encode_value(value: Any) -> bytes:
     """Encode a Python value to CBOR (canonical form)."""
     if isinstance(value, bool):
         return bytes([0xF5 if value else 0xF4])
-    elif isinstance(value, int):
+    if isinstance(value, int):
         if value >= 0:
             return _cbor_encode_uint(0x00, value)
-        else:
-            return _cbor_encode_uint(0x20, -1 - value)
-    elif isinstance(value, str):
+        return _cbor_encode_uint(0x20, -1 - value)
+    if isinstance(value, str):
         return _cbor_encode_text(value)
-    elif isinstance(value, bytes):
+    if isinstance(value, bytes):
         return _cbor_encode_bytes(value)
-    elif isinstance(value, list):
+    if isinstance(value, list):
         items = [_cbor_encode_value(item) for item in cast(list[Any], value)]
         return _cbor_encode_array(items)
-    elif isinstance(value, tuple):
+    if isinstance(value, tuple):
         items = [_cbor_encode_value(item) for item in cast(tuple[Any, ...], value)]
         return _cbor_encode_array(items)
-    elif isinstance(value, dict):
+    if isinstance(value, dict):
         pairs = [
             (_cbor_encode_text(k), _cbor_encode_value(v))
             for k, v in cast(dict[str, Any], value).items()
         ]
         return _cbor_encode_map(pairs)
-    elif value is None:
+    if value is None:
         return bytes([0xF6])
-    else:
-        raise ValueError(f"Cannot encode {type(value)} to CBOR")
+    raise ValueError(f"Cannot encode {type(value)} to CBOR")
 
 
 # =============================================================================
@@ -166,21 +162,23 @@ class EphemeralAuthority:
                 self._public_key = private_key.public_key().public_bytes_raw()
             except ImportError:
                 try:
-                    from nacl.signing import SigningKey  # type: ignore[import-not-found]
+                    from nacl.signing import (
+                        SigningKey,  # type: ignore[import-not-found]
+                    )
 
                     # nacl has no type stubs - silence all type warnings for this block
                     signing_key: Any = SigningKey.generate()  # pyright: ignore[reportUnknownMemberType,reportUnknownVariableType]
                     self._signing_key = signing_key
                     self._private_key = bytes(signing_key)  # pyright: ignore[reportUnknownArgumentType]
                     self._public_key = bytes(signing_key.verify_key)  # pyright: ignore[reportUnknownMemberType,reportUnknownArgumentType]
-                except ImportError:
+                except ImportError as e:
                     raise ImportError(
                         "Either 'cryptography' or 'pynacl' is required for EphemeralAuthority.\n"
                         "Install with: pip install cryptography"
-                    )
+                    ) from e
 
     @classmethod
-    def from_seed(cls, seed: bytes) -> "EphemeralAuthority":
+    def from_seed(cls, seed: bytes) -> EphemeralAuthority:
         """Create a test authority from a 32-byte seed.
 
         This is useful for deterministic testing.
@@ -216,11 +214,11 @@ class EphemeralAuthority:
                 auth._private_key = seed
                 auth._public_key = bytes(signing_key.verify_key)  # pyright: ignore[reportUnknownMemberType,reportUnknownArgumentType]
                 return auth
-            except ImportError:
+            except ImportError as e:
                 raise ImportError(
                     "Either 'cryptography' or 'pynacl' is required.\n"
                     "Install with: pip install cryptography"
-                )
+                ) from e
 
     def public_key_bytes(self) -> bytes:
         """Get the raw public key bytes (32 bytes for Ed25519)."""
@@ -382,8 +380,8 @@ class EphemeralAuthority:
 
 
 __all__ = [
-    "EphemeralAuthority",
     "PCA",
+    "EphemeralAuthority",
 ]
 
 # Backwards compatibility alias

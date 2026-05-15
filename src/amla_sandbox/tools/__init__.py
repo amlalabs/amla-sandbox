@@ -32,14 +32,14 @@ from .ingest import (
 
 __all__ = [
     "ToolDefinition",
-    "tool_from_function",
     "capability_from_function",
-    "format_tool_descriptions_js",
     "create_tool_handler",
-    # Framework ingestion
-    "from_langchain",
-    "from_openai_tools",
-    "from_openai",
+    "format_tool_descriptions_js",
     "from_anthropic_tools",
     "from_claude",
+    # Framework ingestion
+    "from_langchain",
+    "from_openai",
+    "from_openai_tools",
+    "tool_from_function",
 ]

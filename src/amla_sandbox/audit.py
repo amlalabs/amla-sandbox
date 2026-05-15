@@ -35,10 +35,11 @@ Example usage::
 from __future__ import annotations
 
 import json
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import IO, TYPE_CHECKING, Any, Callable, Iterator
+from typing import IO, TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from .runtime.wasm import Runtime
@@ -163,7 +164,9 @@ class AuditCollector:
         self._turn_id = 0
 
         if self._config.output_path:
-            self._file = open(self._config.output_path, "a")
+            # Long-lived append handle; closed in `close()`. Owning a file
+            # handle as instance state precludes a `with` block.
+            self._file = self._config.output_path.open("a")
 
         if self._config.binary_dir:
             self._config.binary_dir.mkdir(parents=True, exist_ok=True)
@@ -198,9 +201,9 @@ class AuditCollector:
             # Parse timestamp
             timestamp_str = raw.get("timestamp", "")
             try:
-                timestamp = datetime.fromisoformat(timestamp_str.replace("Z", "+00:00"))
+                timestamp = datetime.fromisoformat(timestamp_str)
             except (ValueError, AttributeError):
-                timestamp = datetime.now()
+                timestamp = datetime.now(tz=UTC)
 
             entry = AuditEntry(
                 type=raw.get("type", "unknown"),

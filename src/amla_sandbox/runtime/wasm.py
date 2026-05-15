@@ -7,18 +7,19 @@ It implements the stepping protocol and host operation routing.
 from __future__ import annotations
 
 import base64
+import contextlib
 import inspect
 import json
 import logging
 import threading as _threading
 import time
-from collections.abc import Awaitable
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Protocol, Union
+from typing import TYPE_CHECKING, Any, Protocol
 
-from ..capabilities import CallLimitExceededError, CapabilityError, MethodCapability
+from ..capabilities import CallLimitExceededError, CapabilityError, ToolCallCap
 
 if TYPE_CHECKING:
     import wasmtime
@@ -35,15 +36,13 @@ class AuditCollectorProtocol(Protocol):
     can be used as an audit collector.
     """
 
-    def drain_from_runtime(self, runtime: "Runtime") -> list["AuditEntry"]:
+    def drain_from_runtime(self, runtime: Runtime) -> list[AuditEntry]:
         """Drain audit entries from the runtime."""
         ...
 
 
 class RuntimeError(Exception):
     """Error from the WASM runtime."""
-
-    pass
 
 
 class RuntimeStatus(Enum):
@@ -71,7 +70,7 @@ SyncToolHandler = Callable[[str, dict[str, Any]], Any]
 AsyncToolHandler = Callable[[str, dict[str, Any]], Awaitable[Any]]
 """Type for async tool handlers: (method, params) -> awaitable result"""
 
-ToolHandler = Union[SyncToolHandler, AsyncToolHandler]
+ToolHandler = SyncToolHandler | AsyncToolHandler
 """Type for tool call handlers: sync or async (method, params) -> result"""
 
 
@@ -92,9 +91,7 @@ class RuntimeConfig:
     For testing, use EphemeralAuthority to generate ephemeral keys.
     """
 
-    capabilities: list[MethodCapability] = field(
-        default_factory=lambda: list[MethodCapability]()
-    )
+    capabilities: list[ToolCallCap] = field(default_factory=lambda: list[ToolCallCap]())
     """Capabilities extracted from PCA for enforcement."""
 
     tool_handler: ToolHandler | None = None
@@ -399,10 +396,9 @@ def _get_cached_module(wasm_path: Path) -> tuple[Any, Any]:
                     cwasm_path,
                     e,
                 )
-                try:
+                # Can't delete a stale cache file — that's fine.
+                with contextlib.suppress(OSError):
                     cwasm_path.unlink(missing_ok=True)
-                except OSError:
-                    pass  # Can't delete - that's fine
 
         # Compile from WASM source
         _cached_module = wasmtime.Module.from_file(_cached_engine, path_str)  # pyright: ignore[reportUnknownMemberType]
@@ -441,7 +437,7 @@ class Runtime:
     Example::
 
         from amla_sandbox.runtime import Runtime, RuntimeConfig
-        from amla_sandbox.capabilities import MethodCapability
+        from amla_sandbox.capabilities import ToolCallCap
 
         # For testing - easiest approach
         runtime = Runtime.for_testing(
@@ -458,7 +454,7 @@ class Runtime:
         config = RuntimeConfig(
             pca_bytes=pca.to_cbor(),
             trusted_authorities=[authority.public_key_hex()],
-            capabilities=[MethodCapability(method_pattern="stripe/**")],
+            capabilities=[ToolCallCap(method_pattern="stripe/**")],
             tool_handler=my_tool_handler,
         )
         runtime = Runtime(config)
@@ -475,7 +471,7 @@ class Runtime:
         tools_json: str = "[]",
         wasm_path: Path | None = None,
         max_steps: int = 10000,
-    ) -> "Runtime":
+    ) -> Runtime:
         """Create a runtime for testing with an ephemeral authority.
 
         This is the easiest way to create a runtime for tests. It generates
@@ -514,14 +510,14 @@ class Runtime:
             capabilities = ["tool_call:**"]
         pca = authority.create_pca(capabilities=capabilities)
 
-        # Convert capability patterns to MethodCapability objects
-        method_caps: list[MethodCapability] = []
+        # Convert capability patterns to ToolCallCap objects
+        method_caps: list[ToolCallCap] = []
         for cap in capabilities:
             if cap.startswith("tool_call:"):
                 pattern = cap.removeprefix("tool_call:")
             else:
                 pattern = cap
-            method_caps.append(MethodCapability(method_pattern=pattern))
+            method_caps.append(ToolCallCap(method_pattern=pattern))
 
         # Create config
         config = RuntimeConfig(
@@ -919,11 +915,10 @@ class Runtime:
             error_msg = self._get_last_error(memory)
             if error_msg:
                 raise RuntimeError(f"Failed to create runtime: {error_msg}")
-            else:
-                raise RuntimeError(
-                    "Failed to create runtime from PCA. "
-                    "Ensure the PCA is signed by a trusted authority."
-                )
+            raise RuntimeError(
+                "Failed to create runtime from PCA. "
+                "Ensure the PCA is signed by a trusted authority."
+            )
 
     def _set_trusted_authorities(self, memory: Any) -> None:
         """Set trusted authorities in WASM runtime.
@@ -1157,7 +1152,7 @@ class Runtime:
 
     def _validate_tool_call(
         self, method: str, params: dict[str, Any], consume: bool = True
-    ) -> MethodCapability:
+    ) -> ToolCallCap:
         """Validate a tool call against capabilities.
 
         Finds a capability that authorizes the call and optionally consumes
@@ -1175,7 +1170,7 @@ class Runtime:
             CapabilityError: If no capability authorizes this call.
             CallLimitExceededError: If all matching capabilities are exhausted.
         """
-        exhausted_caps: list[MethodCapability] = []
+        exhausted_caps: list[ToolCallCap] = []
         # Track constraint violations for pattern-matching capabilities
         # This allows us to report specific constraint failures rather than
         # the generic "no capability authorizes" message
@@ -1218,13 +1213,10 @@ class Runtime:
                 raise CapabilityError(
                     f"Method '{method}' matched pattern '{pattern}' but failed constraint check: {error}"
                 )
-            else:
-                violations_str = "; ".join(
-                    f"'{p}': {e}" for p, e in constraint_violations
-                )
-                raise CapabilityError(
-                    f"Method '{method}' matched patterns but failed constraint checks: {violations_str}"
-                )
+            violations_str = "; ".join(f"'{p}': {e}" for p, e in constraint_violations)
+            raise CapabilityError(
+                f"Method '{method}' matched patterns but failed constraint checks: {violations_str}"
+            )
 
         # No capability matched at all
         raise CapabilityError(
@@ -1583,8 +1575,7 @@ class Runtime:
             )
 
         # Combine output chunks
-        output = b"".join(self._output_chunks).decode("utf-8", errors="replace")
-        return output
+        return b"".join(self._output_chunks).decode("utf-8", errors="replace")
 
     async def execute_async(
         self,
@@ -1782,8 +1773,7 @@ class Runtime:
             )
 
         # Combine output chunks
-        output = b"".join(self._output_chunks).decode("utf-8", errors="replace")
-        return output
+        return b"".join(self._output_chunks).decode("utf-8", errors="replace")
 
     async def _handle_host_op_async(
         self, op_id: int, runtime_id: int, request: dict[str, Any]
@@ -1869,7 +1859,7 @@ class Runtime:
         except (CapabilityError, CallLimitExceededError):
             return False
 
-    def get_capabilities(self) -> list[MethodCapability]:
+    def get_capabilities(self) -> list[ToolCallCap]:
         """Get all capabilities for this runtime.
 
         Returns:
@@ -1881,7 +1871,7 @@ class Runtime:
         """Get remaining calls for a capability.
 
         Args:
-            capability_key: The capability key (e.g., "cap:method:stripe/**").
+            capability_key: The capability key (e.g., "cap:tool-call:stripe/**").
 
         Returns:
             Remaining calls, or None if capability has no limit or doesn't exist.
@@ -1889,7 +1879,7 @@ class Runtime:
         Example::
 
             runtime = Runtime(config)
-            remaining = runtime.get_remaining_calls("cap:method:stripe/charges/*")
+            remaining = runtime.get_remaining_calls("cap:tool-call:stripe/charges/*")
             print(f"Can make {remaining} more Stripe charges")
         """
         return self._call_counts.get(capability_key)
@@ -1920,7 +1910,6 @@ class Runtime:
         """
         # Tools are passed at runtime creation via runtime_new_with_tools
         # This method is kept for API compatibility but is a no-op
-        pass
 
     def __del__(self) -> None:
         """Clean up runtime resources."""
@@ -1933,5 +1922,8 @@ class Runtime:
                 destroy_fn = self._instance.exports(self._store).get("runtime_destroy")
                 if destroy_fn is not None:
                     destroy_fn(self._store, self._runtime_id)
-            except Exception:
-                pass  # Ignore errors during cleanup
+            except Exception as e:
+                # Cleanup path: log and continue. The runtime is being torn
+                # down so any failure here is recoverable; we must not
+                # propagate to drop()/close() callers.
+                _logger.debug("runtime_destroy raised during cleanup: %s", e)

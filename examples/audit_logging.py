@@ -17,17 +17,16 @@ instrumented, events will automatically flow through this system.
 
 import json
 import tempfile
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 from amla_sandbox import (
-    MethodCapability,
     Sandbox,
+    ToolCallCap,
     ToolDefinition,
 )
 from amla_sandbox.audit import AuditCollector, AuditConfig, AuditEntry
-
 
 # =============================================================================
 # Example 1: Basic Audit Configuration
@@ -74,7 +73,7 @@ def example_audit_entries() -> None:
     print()
 
     # Create sample entries (as would be parsed from WASM buffer)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     entry = AuditEntry(
         type="tool_call",
@@ -129,7 +128,7 @@ def example_filtering() -> None:
     collector = AuditCollector(config)
 
     # Create sample entries of different types
-    base_time = datetime(2025, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+    base_time = datetime(2025, 1, 1, 12, 0, 0, tzinfo=UTC)
 
     entries = [
         AuditEntry(
@@ -201,7 +200,7 @@ def example_turn_correlation() -> None:
     config = AuditConfig(agent_id="multi-turn-agent")
     collector = AuditCollector(config)
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     # Simulate multi-turn execution
     print("Simulating multi-turn agent:")
@@ -271,7 +270,7 @@ def example_file_output() -> None:
 
     with AuditCollector(config) as collector:
         # Manually write some entries (simulating runtime events)
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         for i in range(3):
             entry = AuditEntry(
@@ -340,7 +339,7 @@ def example_custom_enrichment() -> None:
     entry = AuditEntry(
         type="enriched_event",
         session_id="sess",
-        timestamp=datetime.now(timezone.utc),
+        timestamp=datetime.now(UTC),
         data=enriched_data,
         agent_id=config.agent_id,
     )
@@ -384,7 +383,7 @@ def example_sandbox_integration() -> None:
     print("Creating Sandbox with audit_config...")
     with Sandbox(
         tools=tools,
-        capabilities=[MethodCapability(method_pattern="**")],
+        capabilities=[ToolCallCap(method_pattern="**")],
         tool_handler=handler,
         audit_config=config,
     ) as sandbox:

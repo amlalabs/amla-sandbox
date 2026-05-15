@@ -42,10 +42,11 @@ For more control, create your own sandbox function::
 from __future__ import annotations
 
 import inspect
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
-from typing import Any, Callable, Sequence
+from typing import Any
 
-from .capabilities import MethodCapability
+from .capabilities import ToolCallCap
 
 # Note: CodeAct functions (create_amla_codeact, create_amla_sandbox, JS_CODEACT_PROMPT)
 # are now imported directly from .codeact in __init__.py
@@ -125,10 +126,8 @@ class SandboxTool:
     """
 
     sandbox: Sandbox
-    tools: list[Callable[..., Any]] = field(default_factory=lambda: [])
-    _tool_map: dict[str, Callable[..., Any]] = field(
-        default_factory=lambda: {}, repr=False
-    )
+    tools: list[Callable[..., Any]] = field(default_factory=list)
+    _tool_map: dict[str, Callable[..., Any]] = field(default_factory=dict, repr=False)
 
     # LangChain tool interface
     name: str = "sandbox"
@@ -149,7 +148,7 @@ Set language="shell" to run shell commands with:
         cls,
         tools: Sequence[Callable[..., Any]],
         *,
-        capabilities: Sequence[MethodCapability] | None = None,
+        capabilities: Sequence[ToolCallCap] | None = None,
     ) -> SandboxTool:
         """Create a SandboxTool from Python functions.
 

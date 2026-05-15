@@ -15,7 +15,7 @@ Real-world use case: Business intelligence, data exploration, automated
 reporting, and ad-hoc analysis without writing SQL or Python.
 
 Requirements:
-    uv pip install "git+https://github.com/amlalabs/amla-sandbox"
+    pip install amla-sandbox
     uv pip install openai python-dotenv
 
 Usage:
@@ -28,15 +28,14 @@ from __future__ import annotations
 import os
 import random
 import re
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-from dotenv import load_dotenv
-from openai import OpenAI
-
 from amla_sandbox import create_sandbox_tool
 from amla_sandbox.tools import from_anthropic_tools
+from dotenv import load_dotenv
+from openai import OpenAI
 
 # =============================================================================
 # Configuration
@@ -95,7 +94,7 @@ def _generate_sample_data() -> dict[str, list[dict[str, Any]]]:
 
     # Generate orders over the past 90 days
     orders = []
-    base_date = datetime.now() - timedelta(days=90)
+    base_date = datetime.now(tz=UTC) - timedelta(days=90)
     regions = ["North", "South", "East", "West"]
 
     for i in range(500):
@@ -347,10 +346,9 @@ def query_database(
                     col = key[:-10]
                     if col in row and value.lower() not in str(row[col]).lower():
                         match = False
-                else:
-                    # Exact match
-                    if key in row and row[key] != value:
-                        match = False
+                # Exact match
+                elif key in row and row[key] != value:
+                    match = False
             if match:
                 filtered.append(row)
         data = filtered
@@ -369,7 +367,7 @@ def query_database(
         for group_key, rows in groups.items():
             agg_row = {group_by: group_key, "count": len(rows)}
             # Sum numeric columns
-            for col in rows[0].keys():
+            for col in rows[0]:
                 if isinstance(rows[0].get(col), (int, float)) and col not in [
                     "id",
                     "customer_id",
@@ -455,18 +453,17 @@ def calculate_statistics(
             "grouped_by": group_by,
             "groups": {k: calc_stats(v) for k, v in groups.items()},
         }
-    else:
-        # Overall statistics
-        values = [
-            float(row[column])
-            for row in data
-            if column in row and isinstance(row[column], (int, float))
-        ]
-        return {
-            "table": table,
-            "column": column,
-            "statistics": calc_stats(values),
-        }
+    # Overall statistics
+    values = [
+        float(row[column])
+        for row in data
+        if column in row and isinstance(row[column], (int, float))
+    ]
+    return {
+        "table": table,
+        "column": column,
+        "statistics": calc_stats(values),
+    }
 
 
 def create_chart(

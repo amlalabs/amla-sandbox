@@ -5,10 +5,10 @@ This example shows all available constraint types and how to combine them.
 """
 
 from amla_sandbox import (
-    MethodCapability,
+    CapabilityError,
     ConstraintSet,
     Param,
-    CapabilityError,
+    ToolCallCap,
 )
 from amla_sandbox.capabilities import Constraint
 
@@ -155,7 +155,7 @@ either_admin_or_owner = Constraint.or_(
     ]
 )
 
-cap_with_or = MethodCapability(
+cap_with_or = ToolCallCap(
     method_pattern="admin/*",
     constraints=ConstraintSet([either_admin_or_owner]),
 )
@@ -174,7 +174,7 @@ high_value_usd = Constraint.and_(
     ]
 )
 
-cap_with_and = MethodCapability(
+cap_with_and = ToolCallCap(
     method_pattern="payment/large",
     constraints=ConstraintSet([high_value_usd]),
 )
@@ -197,7 +197,7 @@ print("=== Real-World Example: Payment Processing ===")
 # Payments under $100: any currency
 # Payments $100+: USD only, require customer_id
 # All payments require currency field
-payment_cap = MethodCapability(
+payment_cap = ToolCallCap(
     method_pattern="payments/process",
     constraints=ConstraintSet(
         [

@@ -22,7 +22,7 @@ def fetch_source_data(source: str, batch_size: int = 100) -> dict[str, Any]:
             ],
             "total_available": 1000,
         }
-    elif source == "customers":
+    if source == "customers":
         return {
             "source": source,
             "records": [

@@ -1,23 +1,22 @@
-"""Tests for MethodCapability."""
+"""Tests for ToolCallCap."""
 
 import pytest
-
 from amla_sandbox.capabilities import (
+    TOOL_CALL_CAP_TYPE,
     CallLimitExceededError,
     CapabilityError,
     ConstraintSet,
-    MethodCapability,
-    METHOD_CAPABILITY_TYPE,
     Param,
+    ToolCallCap,
 )
 from amla_sandbox.capabilities.constraints import Constraint
 
 
-class TestMethodCapability:
-    """Tests for MethodCapability."""
+class TestToolCallCap:
+    """Tests for ToolCallCap."""
 
     def test_basic_creation(self) -> None:
-        cap = MethodCapability(method_pattern="stripe/charges/*")
+        cap = ToolCallCap(method_pattern="stripe/charges/*")
 
         assert cap.method_pattern == "stripe/charges/*"
         assert cap.constraints.is_empty()
@@ -25,7 +24,7 @@ class TestMethodCapability:
         assert cap.input_schema is None
 
     def test_with_all_options(self) -> None:
-        cap = MethodCapability(
+        cap = ToolCallCap(
             method_pattern="stripe/charges/*",
             constraints=ConstraintSet([Param("amount") <= 1000]),
             max_calls=100,
@@ -38,18 +37,18 @@ class TestMethodCapability:
         assert cap.input_schema == {"type": "object"}
 
     def test_key(self) -> None:
-        cap = MethodCapability(method_pattern="stripe/charges/*")
-        assert cap.key() == "cap:method:stripe/charges/*"
+        cap = ToolCallCap(method_pattern="stripe/charges/*")
+        assert cap.key() == "cap:tool-call:stripe/charges/*"
 
-        cap2 = MethodCapability(method_pattern="**")
-        assert cap2.key() == "cap:method:**"
+        cap2 = ToolCallCap(method_pattern="**")
+        assert cap2.key() == "cap:tool-call:**"
 
 
-class TestMethodCapabilityValidateCall:
+class TestToolCallCapValidateCall:
     """Tests for validate_call method."""
 
     def test_pattern_match(self) -> None:
-        cap = MethodCapability(method_pattern="stripe/charges/*")
+        cap = ToolCallCap(method_pattern="stripe/charges/*")
 
         # Matches
         cap.validate_call("stripe/charges/create", {})
@@ -62,7 +61,7 @@ class TestMethodCapabilityValidateCall:
             cap.validate_call("github/repos/list", {})
 
     def test_with_constraints(self) -> None:
-        cap = MethodCapability(
+        cap = ToolCallCap(
             method_pattern="stripe/charges/*",
             constraints=ConstraintSet(
                 [
@@ -84,48 +83,48 @@ class TestMethodCapabilityValidateCall:
             cap.validate_call("stripe/charges/create", {"amount": 50000})
 
 
-class TestMethodCapabilityIsSubsetOf:
+class TestToolCallCapIsSubsetOf:
     """Tests for is_subset_of method."""
 
     def test_pattern_subset(self) -> None:
-        parent = MethodCapability(method_pattern="stripe/**")
+        parent = ToolCallCap(method_pattern="stripe/**")
 
         # Valid: narrower pattern
-        child1 = MethodCapability(method_pattern="stripe/charges/*")
+        child1 = ToolCallCap(method_pattern="stripe/charges/*")
         assert child1.is_subset_of(parent)
 
-        child2 = MethodCapability(method_pattern="stripe/charges/create")
+        child2 = ToolCallCap(method_pattern="stripe/charges/create")
         assert child2.is_subset_of(parent)
 
         # Invalid: different prefix
-        child3 = MethodCapability(method_pattern="github/**")
+        child3 = ToolCallCap(method_pattern="github/**")
         assert not child3.is_subset_of(parent)
 
         # Invalid: broader pattern
-        child4 = MethodCapability(method_pattern="**")
+        child4 = ToolCallCap(method_pattern="**")
         assert not child4.is_subset_of(parent)
 
     def test_max_calls_subset(self) -> None:
-        parent = MethodCapability(method_pattern="stripe/**", max_calls=100)
+        parent = ToolCallCap(method_pattern="stripe/**", max_calls=100)
 
         # Valid: lower limit
-        child1 = MethodCapability(method_pattern="stripe/charges/*", max_calls=50)
+        child1 = ToolCallCap(method_pattern="stripe/charges/*", max_calls=50)
         assert child1.is_subset_of(parent)
 
         # Valid: same limit
-        child2 = MethodCapability(method_pattern="stripe/charges/*", max_calls=100)
+        child2 = ToolCallCap(method_pattern="stripe/charges/*", max_calls=100)
         assert child2.is_subset_of(parent)
 
         # Invalid: higher limit
-        child3 = MethodCapability(method_pattern="stripe/charges/*", max_calls=200)
+        child3 = ToolCallCap(method_pattern="stripe/charges/*", max_calls=200)
         assert not child3.is_subset_of(parent)
 
         # Invalid: no limit (unlimited)
-        child4 = MethodCapability(method_pattern="stripe/charges/*")
+        child4 = ToolCallCap(method_pattern="stripe/charges/*")
         assert not child4.is_subset_of(parent)
 
     def test_constraints_subset(self) -> None:
-        parent = MethodCapability(
+        parent = ToolCallCap(
             method_pattern="stripe/**",
             constraints=ConstraintSet(
                 [
@@ -135,7 +134,7 @@ class TestMethodCapabilityIsSubsetOf:
         )
 
         # Valid: stricter constraint
-        child1 = MethodCapability(
+        child1 = ToolCallCap(
             method_pattern="stripe/charges/*",
             constraints=ConstraintSet(
                 [
@@ -146,7 +145,7 @@ class TestMethodCapabilityIsSubsetOf:
         assert child1.is_subset_of(parent)
 
         # Valid: adds extra constraint on different param
-        child2 = MethodCapability(
+        child2 = ToolCallCap(
             method_pattern="stripe/charges/*",
             constraints=ConstraintSet(
                 [
@@ -158,7 +157,7 @@ class TestMethodCapabilityIsSubsetOf:
         assert child2.is_subset_of(parent)
 
         # Invalid: looser constraint
-        child3 = MethodCapability(
+        child3 = ToolCallCap(
             method_pattern="stripe/charges/*",
             constraints=ConstraintSet(
                 [
@@ -169,17 +168,17 @@ class TestMethodCapabilityIsSubsetOf:
         assert not child3.is_subset_of(parent)
 
 
-class TestMethodCapabilitySerialization:
+class TestToolCallCapSerialization:
     """Tests for serialization/deserialization."""
 
     def test_to_dict_minimal(self) -> None:
-        cap = MethodCapability(method_pattern="stripe/charges/*")
+        cap = ToolCallCap(method_pattern="stripe/charges/*")
         d = cap.to_dict()
 
         assert d == {"method_pattern": "stripe/charges/*"}
 
     def test_to_dict_full(self) -> None:
-        cap = MethodCapability(
+        cap = ToolCallCap(
             method_pattern="stripe/charges/*",
             constraints=ConstraintSet([Param("amount") <= 1000]),
             max_calls=100,
@@ -193,14 +192,14 @@ class TestMethodCapabilitySerialization:
         assert d["input_schema"] == {"type": "object"}
 
     def test_from_dict_minimal(self) -> None:
-        cap = MethodCapability.from_dict({"method_pattern": "stripe/charges/*"})
+        cap = ToolCallCap.from_dict({"method_pattern": "stripe/charges/*"})
 
         assert cap.method_pattern == "stripe/charges/*"
         assert cap.constraints.is_empty()
         assert cap.max_calls is None
 
     def test_from_dict_full(self) -> None:
-        cap = MethodCapability.from_dict(
+        cap = ToolCallCap.from_dict(
             {
                 "method_pattern": "stripe/charges/*",
                 "constraints": [
@@ -217,7 +216,7 @@ class TestMethodCapabilitySerialization:
         assert cap.input_schema == {"type": "object"}
 
     def test_roundtrip(self) -> None:
-        original = MethodCapability(
+        original = ToolCallCap(
             method_pattern="stripe/charges/*",
             constraints=ConstraintSet(
                 [
@@ -229,18 +228,18 @@ class TestMethodCapabilitySerialization:
         )
 
         d = original.to_dict()
-        restored = MethodCapability.from_dict(d)
+        restored = ToolCallCap.from_dict(d)
 
         assert restored.method_pattern == original.method_pattern
         assert len(restored.constraints) == len(original.constraints)
         assert restored.max_calls == original.max_calls
 
 
-class TestMethodCapabilityType:
-    """Tests for METHOD_CAPABILITY_TYPE constant."""
+class TestToolCallCapType:
+    """Tests for TOOL_CALL_CAP_TYPE constant."""
 
     def test_constant_value(self) -> None:
-        assert METHOD_CAPABILITY_TYPE == "method"
+        assert TOOL_CALL_CAP_TYPE == "tool-call"
 
 
 class TestCallLimitExceededError:
@@ -248,22 +247,22 @@ class TestCallLimitExceededError:
 
     def test_error_message(self) -> None:
         """Error message includes capability key and max_calls."""
-        error = CallLimitExceededError("cap:method:stripe/charges/*", 100)
+        error = CallLimitExceededError("cap:tool-call:stripe/charges/*", 100)
 
-        assert "cap:method:stripe/charges/*" in str(error)
+        assert "cap:tool-call:stripe/charges/*" in str(error)
         assert "100" in str(error)
         assert "exceeded" in str(error).lower()
 
     def test_attributes(self) -> None:
         """Error has capability_key and max_calls attributes."""
-        error = CallLimitExceededError("cap:method:api/**", 50)
+        error = CallLimitExceededError("cap:tool-call:api/**", 50)
 
-        assert error.capability_key == "cap:method:api/**"
+        assert error.capability_key == "cap:tool-call:api/**"
         assert error.max_calls == 50
 
     def test_is_capability_error(self) -> None:
         """CallLimitExceededError is a subclass of CapabilityError."""
-        error = CallLimitExceededError("cap:method:test", 10)
+        error = CallLimitExceededError("cap:tool-call:test", 10)
 
         assert isinstance(error, CapabilityError)
         assert isinstance(error, Exception)
@@ -271,11 +270,11 @@ class TestCallLimitExceededError:
     def test_can_be_caught_as_capability_error(self) -> None:
         """CallLimitExceededError can be caught as CapabilityError."""
         with pytest.raises(CapabilityError):
-            raise CallLimitExceededError("cap:method:test", 10)
+            raise CallLimitExceededError("cap:tool-call:test", 10)
 
     def test_zero_max_calls(self) -> None:
         """Error works with zero max_calls (edge case)."""
-        error = CallLimitExceededError("cap:method:limited", 0)
+        error = CallLimitExceededError("cap:tool-call:limited", 0)
 
         assert error.max_calls == 0
         assert "0" in str(error)

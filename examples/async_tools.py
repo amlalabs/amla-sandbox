@@ -9,7 +9,7 @@ This tutorial covers:
   5. Tool call patterns and best practices
 
 Prerequisites:
-    uv pip install "git+https://github.com/amlalabs/amla-sandbox"
+    pip install amla-sandbox
 
 Run:
     python async_tool_handlers.py
@@ -23,7 +23,7 @@ from typing import Any
 
 from amla_sandbox import (
     Sandbox,
-    MethodCapability,
+    ToolCallCap,
     ToolDefinition,
     create_sandbox_tool,
     tool_from_function,
@@ -176,7 +176,7 @@ def part2_tool_definitions() -> None:
     # Create sandbox with explicit tools and handler
     sandbox = Sandbox(
         tools=tools,
-        capabilities=[MethodCapability(method_pattern="**")],  # Allow all
+        capabilities=[ToolCallCap(method_pattern="**")],  # Allow all
         tool_handler=handle_tool,
     )
 
@@ -267,7 +267,7 @@ multiple concurrent operations efficiently.
     async def run_async_demo():
         sandbox = Sandbox(
             tools=tools,
-            capabilities=[MethodCapability(method_pattern="**")],
+            capabilities=[ToolCallCap(method_pattern="**")],
             tool_handler=async_handler,  # Pass async function
         )
 
@@ -367,7 +367,7 @@ def part4_error_handling() -> None:
 
     sandbox = Sandbox(
         tools=tools,
-        capabilities=[MethodCapability(method_pattern="**")],
+        capabilities=[ToolCallCap(method_pattern="**")],
         tool_handler=risky_handler,
     )
 
@@ -478,7 +478,7 @@ def part5_patterns() -> None:
 
     sandbox = Sandbox(
         tools=tools,
-        capabilities=[MethodCapability(method_pattern="**")],
+        capabilities=[ToolCallCap(method_pattern="**")],
         tool_handler=db_handler,
     )
 

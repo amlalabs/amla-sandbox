@@ -15,7 +15,7 @@ Real-world use case: Automated code review for CI/CD pipelines, helping
 developers catch issues before code review, and generating documentation.
 
 Requirements:
-    uv pip install "git+https://github.com/amlalabs/amla-sandbox"
+    pip install amla-sandbox
     uv pip install openai python-dotenv langchain-core
 
 Usage:
@@ -31,12 +31,11 @@ import re
 from pathlib import Path
 from typing import Any
 
+from amla_sandbox import create_sandbox_tool
+from amla_sandbox.tools import from_langchain
 from dotenv import load_dotenv
 from langchain_core.tools import tool
 from openai import OpenAI
-
-from amla_sandbox import create_sandbox_tool
-from amla_sandbox.tools import from_langchain
 
 # =============================================================================
 # Configuration
@@ -184,16 +183,19 @@ def analyze_code(code: str, analysis_type: str = "all") -> dict[str, Any]:
     if analysis_type in ("style", "all"):
         for line_num, line in enumerate(lines, 1):
             # Missing type hints
-            if re.match(r"\s*def\s+\w+\([^)]*\)\s*:", line):
-                if "->" not in line and "self" in line:
-                    issues["style"].append(
-                        {
-                            "line": line_num,
-                            "message": "Method missing return type annotation",
-                            "severity": "low",
-                            "code": line.strip(),
-                        }
-                    )
+            if (
+                re.match(r"\s*def\s+\w+\([^)]*\)\s*:", line)
+                and "->" not in line
+                and "self" in line
+            ):
+                issues["style"].append(
+                    {
+                        "line": line_num,
+                        "message": "Method missing return type annotation",
+                        "severity": "low",
+                        "code": line.strip(),
+                    }
+                )
 
             # Magic numbers
             if re.search(r"\b\d+\.\d{2,}\b", line) and "def " not in line:

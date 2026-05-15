@@ -9,7 +9,7 @@ This tutorial covers:
   5. Common VFS patterns for data processing
 
 Prerequisites:
-    uv pip install "git+https://github.com/amlalabs/amla-sandbox"
+    pip install amla-sandbox
 
 Run:
     python vfs_file_operations.py
