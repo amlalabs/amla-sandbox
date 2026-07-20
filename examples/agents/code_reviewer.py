@@ -75,7 +75,7 @@ class Processor:
     def process(self):
         try:
             return self.run()
-        except:
+        except Exception:
             return None
 """
 
